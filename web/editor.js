@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 function el(tag, text = "", parent = null) {
   const node = document.createElement(tag);
   if (text) node.textContent = text;
@@ -30,7 +30,8 @@ async function request(path, options = {}) {
 
 export async function buildMobileWorkflow(descriptor) {
   // Native constructors and serialization own graph structure and widget order.
-  const types = ["FrameSource", descriptor.main, ...descriptor.groups.map(g => g.type)];
+  const sourceType = descriptor.source || "FrameSource";
+  const types = [sourceType, descriptor.main, ...descriptor.groups.map(g => g.type)];
   const defs = {};
   for (const type of types) if (!LiteGraph.registered_node_types[type]) Object.assign(defs, await request("/object_info/" + encodeURIComponent(type)));
   if (Object.keys(defs).length) await app.registerNodesFromDefs(defs);
@@ -43,7 +44,7 @@ export async function buildMobileWorkflow(descriptor) {
     graph.add(n);
     return n;
   };
-  const source = add("FrameSource", "在线词库", 50, 50);
+  const source = add(sourceType, "提示词来源", 50, 50);
   const main = add(descriptor.main, "提示词与画质", 50, 270);
   source.connect(0, main, main.findInputSlot("source"));
   let previous = null;
@@ -64,6 +65,7 @@ export async function buildMobileWorkflow(descriptor) {
   for (const node of Object.values(output)) for (const [key, value] of Object.entries(node.inputs)) {
     if (Array.isArray(value)) continue;
     if (key === "text" && typeof value === "string") continue;
+    if (node.class_type === descriptor.source && ["提示词来源","抽词方式"].includes(key) && typeof value === "string") continue;
     if (typeof value !== "boolean") throw new Error("Unexpected phone widget: " + key);
   }
   return { ui, output };
@@ -78,7 +80,7 @@ export async function openEditor() {
   const close = el("button", "关闭", dialog); close.style.float = "right";
   close.onclick = () => { dialog.close(); dialog.remove(); };
   el("h2", "FRAME 配方设置", dialog);
-  el("p", "在电脑选模型和 LoRA。生成的手机页只有提示词和开关，文件、强度和触发词保存在这台电脑。", dialog);
+  el("p", "在电脑选模型、LoRA 和本地词库。手机用两个菜单选择来源及抽词方式，画质和 LoRA 仍用开关。文件、强度和触发词保存在这台电脑。", dialog);
   const title = field(dialog, "工作流名称", recipe.name);
   const models = el("details", "", dialog); models.open = true;
   el("summary", "模型设置（首次使用）", models);
@@ -90,6 +92,37 @@ export async function openEditor() {
   for (const [key, label, value] of [["steps","步数",8],["cfg","CFG",1]]) genInputs[key] = field(generation,label,recipe.generation[key] ?? value,null,"number");
   genInputs.sampler = field(generation,"采样器",recipe.generation.sampler || "euler_ancestral");
   genInputs.scheduler = field(generation,"调度器",recipe.generation.scheduler || "beta");
+  const local = el("details", "", dialog);
+  el("summary", "本地 wildcard 词库", local);
+  el("p", "导入 UTF-8 .txt：每行一条，或用空行分隔多行条目。忽略 # 开头的注释；不执行嵌套 __引用__ 或 {A|B} 表达式。勾选要放进手机来源菜单的词库，再保存配方。", local);
+  const uploadLabel = el("label", "选择 .txt 文件 ", local);
+  const upload = el("input", "", uploadLabel); upload.type="file"; upload.accept=".txt,text/plain";
+  const importName = field(local,"词库名称","");
+  const importMode = field(local,"文件格式","每行一条",["每行一条","空行分段（多行条目）"]);
+  upload.onchange=()=>{if(upload.files[0]) importName.value=upload.files[0].name.replace(/\.txt$/i,"");};
+  const importButton=el("button","导入词库",local);
+  const importStatus=el("p","",local);
+  const libraryArea=el("div","",local), libraryRows=new Map();
+  function addLibrary(row, selected=false) {
+    if(libraryRows.has(row.id)) { if(selected) libraryRows.get(row.id).check.checked=true; return; }
+    const line=el("div","",libraryArea);
+    const check=field(line,row.name+"（"+row.count+" 条）",selected,null,"checkbox");
+    libraryRows.set(row.id,{row,check});
+  }
+  for(const row of state.wildcards || []) addLibrary(row,(recipe.wildcards || []).some(x=>x.id===row.id));
+  importButton.onclick=async()=>{
+    importButton.disabled=true; importStatus.textContent="正在导入…";
+    try {
+      const file=upload.files[0];
+      if(!file || !file.name.toLowerCase().endsWith(".txt")) throw new Error("请选择 .txt 文件");
+      if(file.size>4*1024*1024) throw new Error("文件最多 4 MiB");
+      const text=new TextDecoder("utf-8",{fatal:true}).decode(await file.arrayBuffer());
+      const result=await request("/frame-nodes/wildcards",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:importName.value,text,mode:importMode.value==="每行一条"?"lines":"blocks"})});
+      addLibrary(result.library,true);
+      importStatus.textContent="已导入 "+result.library.count+" 条。保存下方配方后，会出现在手机来源菜单。";
+    } catch(e) { importStatus.textContent=e.message; }
+    finally { importButton.disabled=false; }
+  };
   const groupArea = el("div", "", dialog);
   const groups = [];
   function addGroup(data = {name:"我的 LoRA",exclusive:false,entries:[]}) {
@@ -139,6 +172,7 @@ export async function openEditor() {
       const filename = path.value.trim();
       if (!filename.endsWith(".json") || filename.startsWith("/") || filename.includes("..") || filename.includes("\\")) throw new Error("请填写工作流目录内的相对 .json 文件名");
       const body = {schema_version:1,name:title.value,models:{},generation:{clip_type:"krea2"},groups:[]};
+      body.wildcards=[...libraryRows.values()].filter(x=>x.check.checked).map(x=>({id:x.row.id,name:x.row.name}));
       for (const [key, input] of Object.entries(modelInputs)) if (input.value) body.models[key]=input.value;
       for (const [key,input] of Object.entries(genInputs)) body.generation[key]=["steps","cfg"].includes(key) ? Number(input.value) : input.value;
       body.groups=groups.map(g=>({name:g.name.value,exclusive:g.exclusive.checked,entries:g.rows.map(r=>({

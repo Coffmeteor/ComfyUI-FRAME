@@ -1,6 +1,6 @@
-# Version 0.1.0 validation scope
+# Version 0.2.0 validation scope
 
-The package has 27 unit tests covering configuration validation, immutable
+The package has 38 unit tests covering configuration validation, immutable
 snapshots, user-defined Boolean schemas, named groups and exclusivity, native
 LoRA graph loading, model-only versus model+CLIP application, trigger precedence
 and removal, paths, changed/missing files, source selection, website publication
@@ -9,10 +9,26 @@ updates, midnight behavior, request bounds and preservation of complete text.
 A real ComfyUI 0.43.0 frontend constructed and serialized the phone workflow,
 reloaded it, and produced an identical API graph. It contained five cards for
 the tested configuration: source, prompt/quality and three local LoRA groups.
-Every editable API value was a prompt string or Boolean; configuration fields
-were absent. The desktop editor was also opened in the test browser.
+Version 0.2.0 exposes two source/mode menus, one prompt and Boolean switches;
+configuration fields are absent. The real desktop editor's file picker imported
+a two-entry UTF-8 .txt, saved it into the phone source menu, and read the saved
+workflow back. Test fixtures were removed from the owner's final recipe.
 
-Linux GPU acceptance used newly generated ceramic-teapot still lifes, with no
+New tests cover line/block formats, UTF-8 BOM, CRLF, comments, bounds, immutable
+library versions, selected-library isolation, two-menu schemas, persistent reuse,
+random-to-reuse transitions, separate source/recipe state, network failure
+preserving the current prompt and image seeds independent of selected text.
+The actual public website's four pools each passed reuse/random/reuse checks.
+An actual 1,656,078-byte import request also succeeded; cross-origin writes and
+invalid text were rejected.
+
+Two real queued Linux GPU jobs used the same local selected prompt in reuse
+mode. Both completed at 832×1248 with different image seeds and different output
+hashes. Native preview also proved random mode changes the selected local entry
+and switching back to reuse keeps that newest entry. Online acceptance reads
+prompt data without generating images from unreviewed random website entries.
+
+Generation-chain acceptance from 0.1.0 used newly generated ceramic-teapot still lifes, with no
 historical people or reference images. Native execution covered:
 
 | Case | Observed result |

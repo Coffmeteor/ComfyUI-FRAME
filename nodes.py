@@ -155,13 +155,19 @@ class MobileGenerate:
             raise ValueError("Invalid FRAME phone controls")
         recipe = config.load(self.SNAPSHOT)
         source = source or {"原版": False, "改写版": False, "仅今日新增": False}
-        FrameSource().select(**source)
         selection = loras or {"snapshot": self.SNAPSHOT, "ids": []}
         if not isinstance(selection, dict) or selection.get("snapshot") != self.SNAPSHOT or set(selection) != {"snapshot", "ids"}:
             raise ValueError("LoRA groups belong to a different recipe; regenerate the phone workflow")
         seed = 0 if options["固定随机种子"] else secrets.randbits(63)
         receipt = None
-        if source["原版"] or source["改写版"]:
+        if isinstance(source, dict) and "snapshot" in source:
+            if source["snapshot"] != self.SNAPSHOT:
+                raise ValueError("Prompt source belongs to a different recipe")
+            from .selections import resolve
+            text, receipt = resolve(text, source)
+        else:
+            FrameSource().select(**source)
+        if "snapshot" not in source and (source["原版"] or source["改写版"]):
             from .frame_source import resolve_frame_prompt
             text, receipt = resolve_frame_prompt(text, {"FRAME 原版": source["原版"], "FRAME 改写版": source["改写版"],
                                "仅今日更新": source["仅今日新增"], "固定随机种子": options["固定随机种子"]})
@@ -174,9 +180,24 @@ class MobileGenerate:
 
 
 def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
+    from .selections import choices, MODES
     main = "FrameKrea2_" + ident
     mappings = {main: type(main, (MobileGenerate,), {"SNAPSHOT": ident})}
     names = {main: "提示词与画质"}
+    source_type = "FrameSources_" + ident
+    source_choices = choices(recipe)
+
+    def source_schema(cls):
+        return {"required": {"提示词来源": (list(source_choices),), "抽词方式": (list(MODES),)}}
+
+    def select_source(self, **options):
+        if set(options) != {"提示词来源", "抽词方式"} or options["提示词来源"] not in source_choices or options["抽词方式"] not in MODES:
+            raise ValueError("Invalid prompt source or selection mode")
+        return ({"snapshot": ident, "choice": source_choices[options["提示词来源"]], "mode": options["抽词方式"]},)
+
+    mappings[source_type] = type(source_type, (), {"CATEGORY": "FRAME/Mobile", "RETURN_TYPES": ("FRAME_SOURCE",),
+                     "FUNCTION": "select", "INPUT_TYPES": classmethod(source_schema), "select": select_source})
+    names[source_type] = "提示词来源"
     groups = []
     for gi, group in enumerate(recipe["groups"]):
         kind = f"FrameLoRAs_{ident}_{gi}"
@@ -199,7 +220,7 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
                     "FUNCTION": "select", "INPUT_TYPES": classmethod(schema), "select": select})
         names[kind] = group["name"]
         groups.append({"type": kind, "title": group["name"], "labels": list(controls)})
-    return mappings, names, {"snapshot": ident, "name": recipe["name"], "main": main, "groups": groups}
+    return mappings, names, {"snapshot": ident, "name": recipe["name"], "main": main, "source": source_type, "groups": groups}
 
 
 NODE_CLASS_MAPPINGS = {"FrameSource": FrameSource, "FramePrompt": FramePrompt, "FrameLora": FrameLora,

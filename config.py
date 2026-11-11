@@ -95,7 +95,7 @@ def trigger_info(filename: str) -> dict:
 
 
 def validate(data: dict) -> dict:
-    if not isinstance(data, dict) or set(data) - {"name", "models", "generation", "groups", "schema_version"}:
+    if not isinstance(data, dict) or set(data) - {"name", "models", "generation", "groups", "schema_version", "wildcards"}:
         raise ValueError("Unknown FRAME recipe fields")
     if data.get("schema_version", 1) != 1:
         raise ValueError("Unsupported FRAME recipe version")
@@ -167,9 +167,24 @@ def validate(data: dict) -> dict:
             checked_groups.append({"name": name, "exclusive": group.get("exclusive", False), "entries": result})
     if total > 128:
         raise ValueError("Use at most 128 LoRAs per recipe")
+    from . import wildcards
+    libraries = data.get("wildcards", [])
+    if not isinstance(libraries, list) or len(libraries) > 32:
+        raise ValueError("每份配方最多选择 32 个本地词库")
+    checked_libraries, library_names, ids = [], set(), set()
+    for row in libraries:
+        if not isinstance(row, dict) or set(row) != {"id", "name"}:
+            raise ValueError("Invalid local wildcard selection")
+        library = wildcards.load(row["id"])
+        name = label(row["name"], "wildcard name")
+        if name in library_names or row["id"] in ids or name != library["name"]:
+            raise ValueError("本地词库名称须唯一，并与导入内容匹配")
+        library_names.add(name); ids.add(row["id"])
+        checked_libraries.append({"id": row["id"], "name": name})
     return {"schema_version": 1, "name": label(data.get("name", "Krea2 · FRAME 图像生成")),
             "models": checked_models, "generation": {"steps": steps, "cfg": float(number(g.get("cfg", 1.0), "CFG", 0, 30)),
-            "sampler": sampler, "scheduler": scheduler, "clip_type": "krea2"}, "groups": checked_groups}
+            "sampler": sampler, "scheduler": scheduler, "clip_type": "krea2"}, "groups": checked_groups,
+            "wildcards": checked_libraries}
 
 
 def snapshot_id(data: dict) -> str:

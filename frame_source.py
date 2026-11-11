@@ -39,7 +39,7 @@ def get_json(path: str) -> dict[str, Any]:
     # Only fixed public catalog paths are constructed here. No user prompt,
     # identity selection, image, account credential or private API is sent.
     request = Request(API + path, headers={"Accept": "application/json", "Origin": ORIGIN,
-                                         "User-Agent": "FRAME-Nodes/0.1.0"})
+                                         "User-Agent": "FRAME-Nodes/0.2.0"})
     try:
         with urlopen(request, timeout=12) as response:
             if not response.geturl().startswith(API):

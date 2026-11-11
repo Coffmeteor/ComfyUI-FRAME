@@ -48,7 +48,7 @@ class Graph:
 
 class FrameTests(unittest.TestCase):
     def test_portable_starter_uses_static_registry_node_without_local_recipe(self):
-        template = json.loads((ROOT / 'workflows' / 'FRAME Krea2 - Start Here.json').read_text())
+        template = json.loads((ROOT / 'workflows' / 'FRAME Krea2 - Start Here.json').read_text(encoding='utf-8'))
         executable = [n for n in template['nodes'] if n['type'] != 'MarkdownNote']
         self.assertEqual([n['type'] for n in executable], ['FrameSetup'])
         self.assertEqual(executable[0]['properties']['cnr_id'], 'frame-nodes')

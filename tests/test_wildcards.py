@@ -71,6 +71,10 @@ class WildcardTests(unittest.TestCase):
         self.assertEqual(list(schema), ["提示词来源", "抽词方式"])
         self.assertEqual(schema["抽词方式"][0], ["沿用当前", "每次随机"])
         self.assertEqual(len(schema["提示词来源"][0]), 5)
+        for spec in schema.values():
+            self.assertEqual(len(spec), 2)
+            self.assertEqual(spec[1]["default"], spec[0][0])
+            self.assertEqual(spec[1]["options"], spec[0])
         for source in schema["提示词来源"][0]:
             self.assertEqual(cls().select(**{"提示词来源": source, "抽词方式": "沿用当前"})[0]["snapshot"], ident)
         with self.assertRaises(ValueError): cls().select(**{"提示词来源": "bad", "抽词方式": "沿用当前"})

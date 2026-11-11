@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 function el(tag, text = "", parent = null) {
   const node = document.createElement(tag);
   if (text) node.textContent = text;

@@ -1,4 +1,11 @@
-# Version 0.2.0 validation scope
+# Version 0.2.1 validation scope
+
+A physical phone report for 0.2.0 showed both source menus as editable text
+fields. Desktop combo rendering did not prove mobile rendering. Version 0.2.1
+emits complete two-part enum specs with explicit defaults and option lists;
+the same snapshot IDs and selection semantics are preserved. The schema contract
+is checked in the unit suite. Physical phone dropdown rendering requires a
+fresh node-definition download and remains a separate acceptance step.
 
 The package has 38 unit tests covering configuration validation, immutable
 snapshots, user-defined Boolean schemas, named groups and exclusivity, native

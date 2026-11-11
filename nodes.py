@@ -172,7 +172,7 @@ class MobileGenerate:
             text, receipt = resolve_frame_prompt(text, {"FRAME 原版": source["原版"], "FRAME 改写版": source["改写版"],
                                "仅今日更新": source["仅今日新增"], "固定随机种子": options["固定随机种子"]})
         if not text.strip():
-            raise ValueError("请输入提示词，或打开一个 FRAME 词库开关")
+            raise ValueError("请输入提示词，或选择一个在线/本地词库")
         prefix = (extra_pnginfo or {}).get("frame_output_prefix", "FRAME/" + self.SNAPSHOT)
         if not isinstance(prefix, str) or not prefix or PurePosixPath(prefix).is_absolute() or ".." in PurePosixPath(prefix).parts or "\\" in prefix or ":" in prefix:
             raise ValueError("Invalid output prefix")
@@ -188,7 +188,14 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
     source_choices = choices(recipe)
 
     def source_schema(cls):
-        return {"required": {"提示词来源": (list(source_choices),), "抽词方式": (list(MODES),)}}
+        sources, modes = list(source_choices), list(MODES)
+        # Include the complete two-part widget spec and explicit enum metadata
+        # for remote form readers, not only the minimal ComfyUI tuple.
+        return {"required": {
+            "提示词来源": (sources, {"default": sources[0], "options": sources,
+                              "tooltip": "选择手动提示词、FRAME 在线来源或已导入的本地词库"}),
+            "抽词方式": (modes, {"default": modes[0], "options": modes,
+                            "tooltip": "沿用当前保留已选条目；每次随机会更新当前条目，图片种子独立"})}}
 
     def select_source(self, **options):
         if set(options) != {"提示词来源", "抽词方式"} or options["提示词来源"] not in source_choices or options["抽词方式"] not in MODES:

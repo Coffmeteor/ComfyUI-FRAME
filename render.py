@@ -14,7 +14,7 @@ def compose(text: str, triggers: list[str]) -> str:
 
 def canvas(landscape=False, square=False, wallpaper=False, small=False):
     if sum((landscape, square, wallpaper)) > 1:
-        raise ValueError("横图、方图、手机壁纸只能打开一个")
+        raise ValueError("Choose only one of Landscape, Square and Phone wallpaper")
     ratio = 3 / 2 if landscape else 1 if square else 9 / 16 if wallpaper else 2 / 3
     pixels = (1 if small else 2) * 1_048_576
     return round(math.sqrt(pixels * ratio) / 32) * 32, round(math.sqrt(pixels / ratio) / 32) * 32
@@ -31,12 +31,12 @@ def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int
     for flag, (field, types) in features.items():
         if options.get(flag):
             if not models.get(field) or any(t not in nodes.NODE_CLASS_MAPPINGS for t in types):
-                raise ValueError(f"{flag}需要先在电脑配置模型并安装对应扩展")
+                raise ValueError(f"{flag}: configure its model on desktop and install the required extension first")
     if options.get("SeedVR2修复") and (not models.get("seedvr_vae") or not models.get("upscaler")):
-        raise ValueError("SeedVR2修复需要配置 VAE 和图像放大模型")
+        raise ValueError("SeedVR2 restoration requires a configured VAE and upscaler model")
     model_name = models.get("alternate_unet") if options.get("备用模型") else models["unet"]
     if not model_name:
-        raise ValueError("请先在电脑配置备用模型")
+        raise ValueError("Configure an alternate model on desktop first")
     for field, category in (("unet", "diffusion_models"), ("text_encoder", "text_encoders"), ("vae", "vae")):
         resolve(category, model_name if field == "unet" else models[field])
     entries = {}
@@ -50,10 +50,10 @@ def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int
         path = resolve("loras", entry["file"])
         st = path.stat()
         if [st.st_size, st.st_mtime_ns] != entry["file_signature"]:
-            raise ValueError(f"LoRA 已更换，请在电脑保存新配方：{entry['name']}")
+            raise ValueError(f"LoRA file changed; save a new desktop recipe: {entry['name']}")
     for gi, group in enumerate(recipe["groups"]):
         if group["exclusive"] and sum(key.startswith(f"{gi}:") for key in selected) > 1:
-            raise ValueError(f"{group['name']}只能开启一个")
+            raise ValueError(f"Allow only one active LoRA in {group['name']}")
     base_model = g.node("UNETLoader", unet_name=model_name, weight_dtype="default").out(0)
     base_clip = g.node("CLIPLoader", clip_name=models["text_encoder"], type=settings["clip_type"], device="default").out(0)
     vae = g.node("VAELoader", vae_name=models["vae"]).out(0)

@@ -1,19 +1,25 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const VERSION = "0.2.2";
-function el(tag, text = "", parent = null) {
+const VERSION = "0.2.3";
+import { resolveLanguage, translate } from "./i18n.js";
+const LANGUAGE_KEY = "FRAME.editorLanguage";
+function preference() { try { return localStorage.getItem(LANGUAGE_KEY) || "auto"; } catch { return "auto"; } }
+function locale() { return app.ui.settings.getSettingValue("Comfy.Locale") || document.documentElement.lang || navigator.language; }
+let activeLanguage = resolveLanguage(preference(), locale());
+const t = text => translate(text, activeLanguage);
+function el(tag, text = "", parent = null, localize = true) {
   const node = document.createElement(tag);
-  if (text) node.textContent = text;
+  if (text) { node.textContent = localize ? t(text) : text; if (localize) node.dataset.frameI18n = text; }
   if (parent) parent.append(node);
   return node;
 }
 function field(parent, title, value, options = null, type = "text") {
-  const label = el("label", title + " ", parent);
+  const label = el("label", title, parent);
   label.style.cssText = "display:inline-flex;gap:8px;align-items:center;margin:6px;flex-wrap:wrap";
   const input = el(options ? "select" : "input", "", label);
   if (options) for (const choice of ["", ...options]) {
-    const item = el("option", choice || "— 未设置 —", input); item.value = choice;
+    const item = el("option", choice || "— Not configured —", input); item.value = choice;
   }
   else input.type = type;
   if (type === "checkbox") input.checked = !!value;
@@ -44,8 +50,8 @@ export async function buildMobileWorkflow(descriptor) {
     graph.add(n);
     return n;
   };
-  const source = add(sourceType, "提示词来源", 50, 50);
-  const main = add(descriptor.main, "提示词与画质", 50, 270);
+  const source = add(sourceType, descriptor.source_title || "Prompt source", 50, 50);
+  const main = add(descriptor.main, descriptor.main_title || "Prompt & Quality", 50, 270);
   source.connect(0, main, main.findInputSlot("source"));
   let previous = null;
   let groupY = 50, rowHeight = 0;
@@ -65,122 +71,136 @@ export async function buildMobileWorkflow(descriptor) {
   for (const node of Object.values(output)) for (const [key, value] of Object.entries(node.inputs)) {
     if (Array.isArray(value)) continue;
     if (key === "text" && typeof value === "string") continue;
-    if (node.class_type === descriptor.source && ["提示词来源","抽词方式"].includes(key) && typeof value === "string") continue;
+    if (node.class_type === descriptor.source && (descriptor.source_fields || ["Prompt source","Selection mode"]).includes(key) && typeof value === "string") continue;
     if (typeof value !== "boolean") throw new Error("Unexpected phone widget: " + key);
   }
   return { ui, output };
 }
 
 export async function openEditor() {
+  activeLanguage = resolveLanguage(preference(), locale());
   const state = await request("/frame-nodes/state");
   const recipe = structuredClone(state.recipe);
   const dialog = el("dialog");
   dialog.style.cssText = "width:min(1100px,94vw);height:86vh;background:#202126;color:#eee;border:1px solid #777;border-radius:14px;padding:24px;overflow:auto";
   document.body.append(dialog);
-  const close = el("button", "关闭", dialog); close.style.float = "right";
+  const close = el("button", "Close", dialog); close.style.float = "right";
   close.onclick = () => { dialog.close(); dialog.remove(); };
-  el("h2", "FRAME 配方设置", dialog);
-  el("p", "在电脑选模型、LoRA 和本地词库。手机用两个菜单选择来源及抽词方式，画质和 LoRA 仍用开关。文件、强度和触发词保存在这台电脑。", dialog);
-  const title = field(dialog, "工作流名称", recipe.name);
+  el("h2", "FRAME Recipe Setup", dialog);
+  const language = field(dialog, "Editor language", preference(), ["auto", "en", "zh"]);
+  for (const option of language.options) { option.dataset.frameI18n = ({auto:"Auto",en:"English",zh:"Chinese"})[option.value] || "— Not configured —"; option.textContent = t(option.dataset.frameI18n); }
+  language.onchange = () => {
+    if (!["auto","en","zh"].includes(language.value)) return;
+    localStorage.setItem(LANGUAGE_KEY, language.value);
+    activeLanguage = resolveLanguage(language.value, locale());
+    for (const node of dialog.querySelectorAll("[data-frame-i18n]")) {
+      if (node.firstChild?.nodeType === Node.TEXT_NODE) node.firstChild.nodeValue = t(node.dataset.frameI18n);
+    }
+  };
+  el("p", "Configure models, LoRAs and local libraries on desktop. On your phone, use two menus plus quality and LoRA switches. Files, strengths and triggers stay on this computer.", dialog);
+  const title = field(dialog, "Workflow name", recipe.name);
+  const exportLanguage = field(dialog, "Workflow labels", recipe.language || "zh", ["en", "zh", "bilingual"]);
+  for (const option of exportLanguage.options) { option.dataset.frameI18n = ({en:"English",zh:"Chinese",bilingual:"Bilingual"})[option.value] || "— Not configured —"; option.textContent = t(option.dataset.frameI18n); }
+  el("p", "Export labels are saved with the recipe. Resave and sync to update phone controls. Your custom group and LoRA names are kept as entered.", dialog);
   const models = el("details", "", dialog); models.open = true;
-  el("summary", "模型设置（首次使用）", models);
+  el("summary", "Models (first-time setup)", models);
   const modelInputs = {};
-  const modelLabels = {unet:"主模型",alternate_unet:"备用模型",text_encoder:"文本编码器",vae:"VAE",upscaler:"图像放大模型",face_detector:"面部检测模型",seedvr_model:"SeedVR2 模型",seedvr_vae:"SeedVR2 VAE"};
+  const modelLabels = {unet:"Diffusion model",alternate_unet:"Alternate model",text_encoder:"Text encoder",vae:"VAE",upscaler:"Upscaler model",face_detector:"Face detector",seedvr_model:"SeedVR2 model",seedvr_vae:"SeedVR2 VAE"};
   for (const [key, label] of Object.entries(modelLabels)) modelInputs[key] = field(models, label, recipe.models[key], state.models[key]);
-  const generation = el("details", "", dialog); el("summary", "Krea2 采样设置", generation);
+  const generation = el("details", "", dialog); el("summary", "Krea2 sampling", generation);
   const genInputs = {};
-  for (const [key, label, value] of [["steps","步数",8],["cfg","CFG",1]]) genInputs[key] = field(generation,label,recipe.generation[key] ?? value,null,"number");
-  genInputs.sampler = field(generation,"采样器",recipe.generation.sampler || "euler_ancestral");
-  genInputs.scheduler = field(generation,"调度器",recipe.generation.scheduler || "beta");
+  for (const [key, label, value] of [["steps","Steps",8],["cfg","CFG",1]]) genInputs[key] = field(generation,label,recipe.generation[key] ?? value,null,"number");
+  genInputs.sampler = field(generation,"Sampler",recipe.generation.sampler || "euler_ancestral");
+  genInputs.scheduler = field(generation,"Scheduler",recipe.generation.scheduler || "beta");
   const local = el("details", "", dialog);
-  el("summary", "本地 wildcard 词库", local);
-  el("p", "导入 UTF-8 .txt：每行一条，或用空行分隔多行条目。忽略 # 开头的注释；不执行嵌套 __引用__ 或 {A|B} 表达式。勾选要放进手机来源菜单的词库，再保存配方。", local);
-  const uploadLabel = el("label", "选择 .txt 文件 ", local);
+  el("summary", "Local wildcard libraries", local);
+  el("p", "Import UTF-8 .txt: one entry per line, or multiline entries separated by blank lines. Whole-line # comments are ignored. Nested __references__ and {A|B} expressions are literal text. Select libraries for the phone menu, then save.", local);
+  const uploadLabel = el("label", "Choose a .txt file ", local);
   const upload = el("input", "", uploadLabel); upload.type="file"; upload.accept=".txt,text/plain";
-  const importName = field(local,"词库名称","");
-  const importMode = field(local,"文件格式","每行一条",["每行一条","空行分段（多行条目）"]);
+  const importName = field(local,"Library name","");
+  const importMode = field(local,"Import format","One entry per line",["One entry per line","Blank-line blocks (multiline)"]);
   upload.onchange=()=>{if(upload.files[0]) importName.value=upload.files[0].name.replace(/\.txt$/i,"");};
-  const importButton=el("button","导入词库",local);
+  const importButton=el("button","Import library",local);
   const importStatus=el("p","",local);
   const libraryArea=el("div","",local), libraryRows=new Map();
   function addLibrary(row, selected=false) {
     if(libraryRows.has(row.id)) { if(selected) libraryRows.get(row.id).check.checked=true; return; }
     const line=el("div","",libraryArea);
-    const check=field(line,row.name+"（"+row.count+" 条）",selected,null,"checkbox");
+    const check=field(line,row.name+" ("+row.count+")",selected,null,"checkbox");
     libraryRows.set(row.id,{row,check});
   }
   for(const row of state.wildcards || []) addLibrary(row,(recipe.wildcards || []).some(x=>x.id===row.id));
   importButton.onclick=async()=>{
-    importButton.disabled=true; importStatus.textContent="正在导入…";
+    importButton.disabled=true; importStatus.textContent=t("Importing…");
     try {
       const file=upload.files[0];
-      if(!file || !file.name.toLowerCase().endsWith(".txt")) throw new Error("请选择 .txt 文件");
-      if(file.size>4*1024*1024) throw new Error("文件最多 4 MiB");
+      if(!file || !file.name.toLowerCase().endsWith(".txt")) throw new Error(t("Choose a .txt file"));
+      if(file.size>4*1024*1024) throw new Error(t("Maximum file size: 4 MiB"));
       const text=new TextDecoder("utf-8",{fatal:true}).decode(await file.arrayBuffer());
-      const result=await request("/frame-nodes/wildcards",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:importName.value,text,mode:importMode.value==="每行一条"?"lines":"blocks"})});
+      const result=await request("/frame-nodes/wildcards",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:importName.value,text,mode:importMode.value==="One entry per line"?"lines":"blocks"})});
       addLibrary(result.library,true);
-      importStatus.textContent="已导入 "+result.library.count+" 条。保存下方配方后，会出现在手机来源菜单。";
+      importStatus.textContent=t("Imported entries: ")+result.library.count+t(". Save the recipe to add this library to the phone menu.");
     } catch(e) { importStatus.textContent=e.message; }
     finally { importButton.disabled=false; }
   };
   const groupArea = el("div", "", dialog);
   const groups = [];
-  function addGroup(data = {name:"我的 LoRA",exclusive:false,entries:[]}) {
+  function addGroup(data = {name:"My LoRAs",exclusive:false,entries:[]}) {
     const section = el("details", "", groupArea); section.open = data.entries.length === 0;
-    const summary = el("summary", data.name, section);
-    const name = field(section,"分组名称",data.name); name.oninput = () => summary.textContent = name.value;
-    const exclusive = field(section,"一次只允许开启一个",data.exclusive,null,"checkbox");
-    const remove = el("button","删除分组",section);
+    const summary = el("summary", data.name, section, false);
+    const name = field(section,"Group name",data.name); name.oninput = () => summary.textContent = name.value;
+    const exclusive = field(section,"Allow only one active LoRA",data.exclusive,null,"checkbox");
+    const remove = el("button","Remove group",section);
     const group = {section,name,exclusive,rows:[]}; groups.push(group);
     remove.onclick = () => { groups.splice(groups.indexOf(group),1); section.remove(); };
     const rows = el("div","",section);
     function addRow(data = {}) {
       const row = el("div","",rows); row.style.cssText="border:1px solid #555;padding:10px;margin:10px 0;border-radius:8px";
-      const file = field(row,"LoRA 文件",data.file,state.loras);
-      const label = field(row,"手机显示名称",data.name);
-      const strength = field(row,"模型强度",data.strength_model ?? 1,null,"number"); strength.step="0.05";
-      const clip = field(row,"CLIP 强度",data.strength_clip ?? 0,null,"number"); clip.step="0.05";
-      const mode = field(row,"触发词",data.trigger_mode || "auto",["auto","manual","none"]);
-      const trigger = field(row,"手动触发词",data.trigger || "");
+      const file = field(row,"LoRA file",data.file,state.loras);
+      const label = field(row,"Phone switch name",data.name);
+      const strength = field(row,"Model strength",data.strength_model ?? 1,null,"number"); strength.step="0.05";
+      const clip = field(row,"CLIP strength",data.strength_clip ?? 0,null,"number"); clip.step="0.05";
+      const mode = field(row,"Trigger mode",data.trigger_mode || "auto",["auto","manual","none"]);
+      const trigger = field(row,"Manual trigger words",data.trigger || "");
       trigger.oninput = () => { mode.value="manual"; };
       const stageInputs = {};
-      for (const [key,title] of [["base","主采样"],["upscale","重绘"],["detailer","面部细修"]]) stageInputs[key] = field(row,title,(data.stages || ["base","upscale","detailer"]).includes(key),null,"checkbox");
-      const detected = el("span",data.trigger_source ? "来源：" + data.trigger_source : "",row);
-      const read = el("button","读取触发词",row);
+      for (const [key,title] of [["base","Base sampling"],["upscale","Redraw"],["detailer","Face detail"]]) stageInputs[key] = field(row,title,(data.stages || ["base","upscale","detailer"]).includes(key),null,"checkbox");
+      const detected = el("span",data.trigger_source ? t("Source: ") + data.trigger_source : "",row);
+      const read = el("button","Read triggers",row);
       read.onclick = async () => {
         try { const info = await request("/frame-nodes/trigger?file=" + encodeURIComponent(file.value));
           if (info.text) { trigger.value = info.text; mode.value="auto"; }
-          detected.textContent = info.text ? "来源：" + info.source : "未找到明确触发词；请手动填写或选择 none。";
+          detected.textContent = info.text ? t("Source: ") + info.source : t("No explicit trigger metadata found. Enter triggers manually or select none.");
         } catch(e) { detected.textContent = e.message; }
       };
       file.onchange = () => { trigger.value=""; mode.value="auto"; if (!label.value) label.value=file.value.split("/").pop().replace(/\.safetensors$/i,""); read.click(); };
       const entry = {row,file,label,strength,clip,mode,trigger,stageInputs}; group.rows.push(entry);
-      el("button","删除 LoRA",row).onclick = () => { group.rows.splice(group.rows.indexOf(entry),1); row.remove(); };
+      el("button","Remove LoRA",row).onclick = () => { group.rows.splice(group.rows.indexOf(entry),1); row.remove(); };
     }
     data.entries.forEach(addRow);
-    el("button","＋ 添加 LoRA",section).onclick = () => addRow();
+    el("button","+ Add LoRA",section).onclick = () => addRow();
   }
   recipe.groups.forEach(addGroup);
-  el("button","＋ 添加分组",dialog).onclick = () => addGroup();
-  const path = field(dialog,"保存到工作流列表", state.workflow_path);
+  el("button","+ Add group",dialog).onclick = () => addGroup();
+  const path = field(dialog,"Workflow save path", state.workflow_path);
   const message = el("p","",dialog);
-  const open = el("button","Open generated workflow / 打开已生成工作流",dialog);
+  const open = el("button","Open generated workflow",dialog);
   open.onclick=async()=>{
     try {
       const response=await api.getUserData("workflows/"+path.value.trim());
-      if(!response.ok) throw new Error("Save your recipe first / 请先保存配方");
+      if(!response.ok) throw new Error(t("Save your recipe first"));
       await app.loadGraphData(await response.json());
       dialog.close();dialog.remove();
     } catch(e) {message.textContent=e.message;}
   };
-  const save = el("button","保存配方并生成手机工作流",dialog);
+  const save = el("button","Save recipe & generate workflow",dialog);
   save.style.cssText="font-size:16px;padding:12px 20px;margin:12px";
   save.onclick = async () => {
-    save.disabled=true; message.textContent="正在保存和验证…";
+    save.disabled=true; message.textContent=t("Saving and validating…");
     try {
       const filename = path.value.trim();
-      if (!filename.endsWith(".json") || filename.startsWith("/") || filename.includes("..") || filename.includes("\\")) throw new Error("请填写工作流目录内的相对 .json 文件名");
-      const body = {schema_version:1,name:title.value,models:{},generation:{clip_type:"krea2"},groups:[]};
+      if (!filename.endsWith(".json") || filename.startsWith("/") || filename.includes("..") || filename.includes("\\")) throw new Error(t("Enter a relative .json path inside your workflow directory"));
+      const body = {schema_version:1,language:exportLanguage.value,name:title.value,models:{},generation:{clip_type:"krea2"},groups:[]};
       body.wildcards=[...libraryRows.values()].filter(x=>x.check.checked).map(x=>({id:x.row.id,name:x.row.name}));
       for (const [key, input] of Object.entries(modelInputs)) if (input.value) body.models[key]=input.value;
       for (const [key,input] of Object.entries(genInputs)) body.generation[key]=["steps","cfg"].includes(key) ? Number(input.value) : input.value;
@@ -191,23 +211,23 @@ export async function openEditor() {
       const result = await request("/frame-nodes/recipe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipe:body,workflow_path:filename})});
       const built = await buildMobileWorkflow(result.descriptor);
       const stored = await api.storeUserData("workflows/"+filename,JSON.stringify(built.ui),{overwrite:true});
-      if (!stored.ok) throw new Error("保存工作流失败："+stored.status);
+      if (!stored.ok) throw new Error("Workflow save failed: "+stored.status);
       const readback = await api.getUserData("workflows/"+filename);
-      if (!readback.ok || JSON.stringify(await readback.json()) !== JSON.stringify(built.ui)) throw new Error("工作流保存后校验失败");
-      message.textContent="已生成并保存。请在队列空闲时重启 ComfyUI，再在 ComfyLink 上传此工作流并手机同步。旧配方仍保留。";
+      if (!readback.ok || JSON.stringify(await readback.json()) !== JSON.stringify(built.ui)) throw new Error(t("Saved workflow verification failed"));
+      message.textContent=t("Generated and saved. Restart ComfyUI while idle, upload this workflow in ComfyLink, then sync your phone. Previous recipes are retained.");
     } catch(e) { message.textContent=e.message; }
     finally { save.disabled=false; }
   };
   dialog.showModal();
 }
 
-app.registerExtension({name:"FRAME.RecipeEditor",commands:[{id:"FRAME.OpenRecipeEditor",label:"FRAME · 配方设置",function:()=>openEditor()}],
+app.registerExtension({name:"FRAME.RecipeEditor",commands:[{id:"FRAME.OpenRecipeEditor",label:t("FRAME · Recipe Setup"),function:()=>openEditor()}],
   async beforeRegisterNodeDef(nodeType,nodeData) {
     if(nodeData.name!=="FrameSetup") return;
     const original=nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated=function(...args){
       original?.apply(this,args);
-      this.addWidget("button","Configure models & LoRAs",null,()=>openEditor(),{serialize:false});
+      this.addWidget("button",t("Configure models & LoRAs"),null,()=>openEditor(),{serialize:false});
       this.size=[360,100];
     };
   },

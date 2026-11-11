@@ -28,7 +28,7 @@
         },
         "Node name for S&R": "FrameSetup",
         "cnr_id": "frame-nodes",
-        "ver": "0.2.2",
+        "ver": "0.2.3",
         "aux_id": "Coffmeteor/ComfyUI-FRAME"
       },
       "widgets_values": [
@@ -84,7 +84,7 @@
       "title": "2 · Configure your local recipe",
       "properties": {},
       "widgets_values": [
-        "# Configure once on desktop\nClick **Configure models & LoRAs**. Select your Krea2 model, text encoder and VAE.\nAdd your own LoRA groups, strengths and trigger words; optionally import UTF-8 .txt wildcards.\nSave, then click **Open generated workflow / 打开已生成工作流**."
+        "# Configure once on desktop\nClick **Configure models & LoRAs**. Select your Krea2 model, text encoder and VAE.\nAdd your own LoRA groups, strengths and trigger words; optionally import UTF-8 .txt wildcards.\nSave, then click **Open generated workflow**."
       ],
       "widgets_values_named": {
         "text": "# Configure once on desktop\nClick **Configure models & LoRAs**. Select your Krea2 model, text encoder and VAE.\nAdd your own LoRA groups, strengths and trigger words; optionally import UTF-8 .txt wildcards.\nSave, then click **Open generated workflow / 打开已生成工作流**."
@@ -133,7 +133,7 @@
     },
     "frame": {
       "template": "portable-setup",
-      "version": "0.2.2"
+      "version": "0.2.3"
     }
   },
   "version": 0.4

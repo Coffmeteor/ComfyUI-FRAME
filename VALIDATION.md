@@ -1,4 +1,8 @@
-# Version 0.2.2 validation scope
+# Version 0.2.3 validation scope
+
+The desktop editor supports Auto (ComfyUI locale), English and Chinese, with a separate English/Chinese/bilingual export setting. Existing language-less snapshots retain their exact Chinese schema. Four language tests cover English defaults, immutable language bindings, legacy restoration, normalized controls and preservation of custom names. Two JavaScript tests cover locale resolution and label translation.
+
+Native desktop acceptance confirmed Auto on an English ComfyUI locale, switching to Chinese and back without losing a draft, saving/reopening an English workflow, and native construction of bilingual menus. English and bilingual previews normalize to identical sampler/canvas/prompt settings. One English-control GPU job completed at 832×1248 with seed 0; prior Chinese snapshots remain unchanged. Public desktop screenshots and the downloadable guide use English only.
 
 The portable starter uses only the static `FrameSetup` node and native Markdown
 notes, with Manager/Registry dependency metadata. It contains no machine-local
@@ -14,7 +18,7 @@ is checked in the unit suite. Physical phone dropdown rendering requires a
 fresh node-definition download. The owner subsequently confirmed that both
 dropdowns work on the physical phone.
 
-The package has 39 unit tests covering the portable starter, configuration validation, immutable
+The package has 43 Python unit tests covering the portable starter, configuration validation, immutable
 snapshots, user-defined Boolean schemas, named groups and exclusivity, native
 LoRA graph loading, model-only versus model+CLIP application, trigger precedence
 and removal, paths, changed/missing files, source selection, website publication

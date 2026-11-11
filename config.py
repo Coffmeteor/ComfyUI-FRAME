@@ -95,10 +95,14 @@ def trigger_info(filename: str) -> dict:
 
 
 def validate(data: dict) -> dict:
-    if not isinstance(data, dict) or set(data) - {"name", "models", "generation", "groups", "schema_version", "wildcards"}:
+    if not isinstance(data, dict) or set(data) - {"name", "models", "generation", "groups", "schema_version", "wildcards", "language"}:
         raise ValueError("Unknown FRAME recipe fields")
     if data.get("schema_version", 1) != 1:
         raise ValueError("Unsupported FRAME recipe version")
+    from .languages import LANGUAGES
+    language = data.get("language", "en")
+    if language not in LANGUAGES:
+        raise ValueError("Choose English, Chinese or bilingual workflow labels")
     models = data.get("models", {})
     if not isinstance(models, dict) or set(models) - MODEL_FIELDS.keys():
         raise ValueError("Unknown model settings")
@@ -170,7 +174,7 @@ def validate(data: dict) -> dict:
     from . import wildcards
     libraries = data.get("wildcards", [])
     if not isinstance(libraries, list) or len(libraries) > 32:
-        raise ValueError("每份配方最多选择 32 个本地词库")
+        raise ValueError("Select at most 32 local libraries per recipe")
     checked_libraries, library_names, ids = [], set(), set()
     for row in libraries:
         if not isinstance(row, dict) or set(row) != {"id", "name"}:
@@ -178,10 +182,10 @@ def validate(data: dict) -> dict:
         library = wildcards.load(row["id"])
         name = label(row["name"], "wildcard name")
         if name in library_names or row["id"] in ids or name != library["name"]:
-            raise ValueError("本地词库名称须唯一，并与导入内容匹配")
+            raise ValueError("Local library names must be unique and match the imported library")
         library_names.add(name); ids.add(row["id"])
         checked_libraries.append({"id": row["id"], "name": name})
-    return {"schema_version": 1, "name": label(data.get("name", "Krea2 · FRAME 图像生成")),
+    return {"schema_version": 1, "language": language, "name": label(data.get("name", "Krea2 · FRAME for ComfyLink")),
             "models": checked_models, "generation": {"steps": steps, "cfg": float(number(g.get("cfg", 1.0), "CFG", 0, 30)),
             "sampler": sampler, "scheduler": scheduler, "clip_type": "krea2"}, "groups": checked_groups,
             "wildcards": checked_libraries}
@@ -228,4 +232,4 @@ def load(ident: str) -> dict:
 def current() -> dict:
     path = directory() / "current.json"
     return load(read_json(path)["snapshot"]) if path.exists() else {
-        "schema_version": 1, "name": "Krea2 · FRAME 图像生成", "models": {}, "generation": {}, "groups": []}
+        "schema_version": 1, "language": "en", "name": "Krea2 · FRAME for ComfyLink", "models": {}, "generation": {}, "groups": []}

@@ -76,7 +76,7 @@ class FrameTests(unittest.TestCase):
                             "comfy_execution.graph_utils": types.SimpleNamespace(GraphBuilder=Graph)})]
         for p in self.patches:
             p.start(); self.addCleanup(p.stop)
-        self.recipe = {"name": "FRAME Test", "models": {"unet": "model.safetensors", "text_encoder": "text.safetensors", "vae": "vae.safetensors"},
+        self.recipe = {"name": "FRAME Test", "language": "zh", "models": {"unet": "model.safetensors", "text_encoder": "text.safetensors", "vae": "vae.safetensors"},
             "groups": [{"name": "My styles", "exclusive": False, "entries": [{"name": "My style", "file": "style.safetensors"}]}]}
 
     def test_snapshot_immutable_and_current_survives_new_recipe(self):

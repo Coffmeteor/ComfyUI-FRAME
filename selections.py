@@ -9,6 +9,7 @@ import threading
 
 from . import config, wildcards
 from .frame_source import resolve_frame_prompt
+from .languages import caption, recipe_language
 
 MANUAL = "手动填写（不抽词）"
 ONLINE = {"FRAME 原版 · 全库": ("FRAME 原版", False),
@@ -20,8 +21,18 @@ LOCK = threading.RLock()
 
 
 def choices(recipe: dict) -> dict[str, str]:
-    return {MANUAL: "manual", **{name: name for name in ONLINE},
-            **{"本地 · " + row["name"]: row["id"] for row in recipe.get("wildcards", [])}}
+    language = recipe_language(recipe)
+    online_names = ("FRAME Original · Full library", "FRAME Original · Latest update",
+                    "FRAME Rewrite · Full library", "FRAME Rewrite · Latest update")
+    return {caption("Manual prompt", MANUAL, language): "manual",
+            **{caption(english, chinese, language): chinese for english, chinese in zip(online_names, ONLINE)},
+            **{caption("Local", "本地", language) + " · " + row["name"]: row["id"] for row in recipe.get("wildcards", [])}}
+
+
+def modes(recipe: dict) -> dict[str, str]:
+    language = recipe_language(recipe)
+    return {caption("Reuse current", MODES[0], language): MODES[0],
+            caption("Random each generation", MODES[1], language): MODES[1]}
 
 
 def resolve(text: str, source: dict) -> tuple[str, dict | None]:
@@ -50,7 +61,7 @@ def resolve(text: str, source: dict) -> tuple[str, dict | None]:
                     if receipt["entry_id"] != previous or receipt["eligible_count"] <= 1:
                         break
                 if receipt["entry_id"] == previous and receipt["eligible_count"] > 1:
-                    raise ValueError("暂未抽到新条目，请再次生成；当前条目仍保留")
+                    raise ValueError("Could not draw a different entry. Generate again; the current entry has been retained.")
             else:
                 library = wildcards.load(choice)
                 entries = library["entries"]

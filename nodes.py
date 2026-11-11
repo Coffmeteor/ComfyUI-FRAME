@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 
 from . import config
 from .render import build, compose
+from .languages import caption, recipe_language, QUALITY
 
 BOOLEAN = ("BOOLEAN", {"default": False})
 CONTROLS = ("横图", "方图", "手机壁纸", "一百万像素", "高清重绘", "面部细修", "SeedVR2修复", "固定随机种子", "备用模型")
@@ -42,9 +43,9 @@ class FrameSource:
         if set(options) != {"原版", "改写版", "仅今日新增"} or any(type(v) is not bool for v in options.values()):
             raise ValueError("Invalid FRAME source switches")
         if options["原版"] and options["改写版"]:
-            raise ValueError("原版与改写版只能选择一个")
+            raise ValueError("Choose only one of Original and Rewrite")
         if options["仅今日新增"] and not (options["原版"] or options["改写版"]):
-            raise ValueError("仅今日新增需要先选择词库")
+            raise ValueError("Choose a library before enabling latest-update-only")
         return (options,)
 
 
@@ -153,11 +154,12 @@ class MobileGenerate:
     OUTPUT_NODE = True
     FUNCTION = "generate"
     SNAPSHOT = ""
+    LANGUAGE = "zh"
 
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {"text": ("STRING", {"default": "", "multiline": True}),
-                             **{key: BOOLEAN for key in CONTROLS}},
+                             **{caption(en, zh, cls.LANGUAGE): BOOLEAN for en, zh in QUALITY}},
                 "optional": {"source": ("FRAME_SOURCE",), "loras": ("FRAME_SELECTION",)},
                 "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"}}
 
@@ -166,6 +168,10 @@ class MobileGenerate:
         return float("nan")
 
     def generate(self, text, source=None, loras=None, extra_pnginfo=None, **options):
+        labels = {caption(en, zh, self.LANGUAGE): zh for en, zh in QUALITY}
+        if set(options) != set(labels):
+            raise ValueError("Invalid FRAME controls; sync the workflow for this recipe language")
+        options = {labels[key]: value for key, value in options.items()}
         if not isinstance(text, str) or len(text) > 16000 or set(options) != set(CONTROLS) or any(type(v) is not bool for v in options.values()):
             raise ValueError("Invalid FRAME phone controls")
         recipe = config.load(self.SNAPSHOT)
@@ -187,7 +193,7 @@ class MobileGenerate:
             text, receipt = resolve_frame_prompt(text, {"FRAME 原版": source["原版"], "FRAME 改写版": source["改写版"],
                                "仅今日更新": source["仅今日新增"], "固定随机种子": options["固定随机种子"]})
         if not text.strip():
-            raise ValueError("请输入提示词，或选择一个在线/本地词库")
+            raise ValueError("Enter a prompt or choose an online/local library")
         prefix = (extra_pnginfo or {}).get("frame_output_prefix", "FRAME/" + self.SNAPSHOT)
         if not isinstance(prefix, str) or not prefix or PurePosixPath(prefix).is_absolute() or ".." in PurePosixPath(prefix).parts or "\\" in prefix or ":" in prefix:
             raise ValueError("Invalid output prefix")
@@ -195,31 +201,36 @@ class MobileGenerate:
 
 
 def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
-    from .selections import choices, MODES
+    from .selections import choices, modes
+    language = recipe_language(recipe)
+    source_label = caption("Prompt source", "提示词来源", language)
+    mode_label = caption("Selection mode", "抽词方式", language)
+    main_title = caption("Prompt & Quality", "提示词与画质", language)
     main = "FrameKrea2_" + ident
-    mappings = {main: type(main, (MobileGenerate,), {"SNAPSHOT": ident})}
-    names = {main: "提示词与画质"}
+    mappings = {main: type(main, (MobileGenerate,), {"SNAPSHOT": ident, "LANGUAGE": language})}
+    names = {main: main_title}
     source_type = "FrameSources_" + ident
     source_choices = choices(recipe)
+    mode_choices = modes(recipe)
 
     def source_schema(cls):
-        sources, modes = list(source_choices), list(MODES)
+        sources, mode_names = list(source_choices), list(mode_choices)
         # Include the complete two-part widget spec and explicit enum metadata
         # for remote form readers, not only the minimal ComfyUI tuple.
         return {"required": {
-            "提示词来源": (sources, {"default": sources[0], "options": sources,
-                              "tooltip": "选择手动提示词、FRAME 在线来源或已导入的本地词库"}),
-            "抽词方式": (modes, {"default": modes[0], "options": modes,
-                            "tooltip": "沿用当前保留已选条目；每次随机会更新当前条目，图片种子独立"})}}
+            source_label: (sources, {"default": sources[0], "options": sources,
+                              "tooltip": caption("Choose a manual prompt, FRAME online catalog or imported local library", "选择手动提示词、FRAME 在线来源或已导入的本地词库", language)}),
+            mode_label: (mode_names, {"default": mode_names[0], "options": mode_names,
+                            "tooltip": caption("Reuse keeps the current prompt; random updates it. Image seeds are independent.", "沿用当前保留已选条目；每次随机会更新当前条目，图片种子独立", language)})}}
 
     def select_source(self, **options):
-        if set(options) != {"提示词来源", "抽词方式"} or options["提示词来源"] not in source_choices or options["抽词方式"] not in MODES:
+        if set(options) != {source_label, mode_label} or options[source_label] not in source_choices or options[mode_label] not in mode_choices:
             raise ValueError("Invalid prompt source or selection mode")
-        return ({"snapshot": ident, "choice": source_choices[options["提示词来源"]], "mode": options["抽词方式"]},)
+        return ({"snapshot": ident, "choice": source_choices[options[source_label]], "mode": mode_choices[options[mode_label]]},)
 
     mappings[source_type] = type(source_type, (), {"CATEGORY": "FRAME/Mobile", "RETURN_TYPES": ("FRAME_SOURCE",),
                      "FUNCTION": "select", "INPUT_TYPES": classmethod(source_schema), "select": select_source})
-    names[source_type] = "提示词来源"
+    names[source_type] = source_label
     groups = []
     for gi, group in enumerate(recipe["groups"]):
         kind = f"FrameLoRAs_{ident}_{gi}"
@@ -233,7 +244,7 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
                 raise ValueError("Invalid LoRA switches; resync this workflow")
             picked = [f"{_gi}:{i}" for i, e in enumerate(_group["entries"]) if switches[e["name"]]]
             if _group["exclusive"] and len(picked) > 1:
-                raise ValueError(f"{_group['name']}只能开启一个")
+                raise ValueError(f"Allow only one active LoRA in {_group['name']}")
             if previous is not None and (not isinstance(previous, dict) or previous.get("snapshot") != ident or set(previous) != {"snapshot", "ids"}):
                 raise ValueError("LoRA groups belong to a different recipe")
             return ({"snapshot": ident, "ids": (previous["ids"] if previous else []) + picked},)
@@ -242,13 +253,15 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
                     "FUNCTION": "select", "INPUT_TYPES": classmethod(schema), "select": select})
         names[kind] = group["name"]
         groups.append({"type": kind, "title": group["name"], "labels": list(controls)})
-    return mappings, names, {"snapshot": ident, "name": recipe["name"], "main": main, "source": source_type, "groups": groups}
+    return mappings, names, {"snapshot": ident, "name": recipe["name"], "main": main, "main_title": main_title,
+                            "source": source_type, "source_title": source_label,
+                            "source_fields": [source_label, mode_label], "language": language, "groups": groups}
 
 
 NODE_CLASS_MAPPINGS = {"FrameSource": FrameSource, "FramePrompt": FramePrompt, "FrameLora": FrameLora,
                        "FrameResizeShortEdge": FrameResizeShortEdge, "FrameSave": FrameSave, "FrameSetup": FrameSetup}
-NODE_DISPLAY_NAME_MAPPINGS = {"FrameSource": "FRAME · 在线词库", "FramePrompt": "FRAME · 提示词组合",
-                            "FrameLora": "FRAME · LoRA 与触发词", "FrameResizeShortEdge": "FRAME · 短边缩放",
+NODE_DISPLAY_NAME_MAPPINGS = {"FrameSource": "FRAME · Legacy source switches", "FramePrompt": "FRAME · Prompt Composer",
+                            "FrameLora": "FRAME · LoRA & Triggers", "FrameResizeShortEdge": "FRAME · Resize Short Edge",
                             "FrameSetup": "FRAME · Start Here"}
 
 

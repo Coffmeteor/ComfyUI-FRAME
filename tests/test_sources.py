@@ -88,7 +88,7 @@ class FrameWildcardTests(unittest.TestCase):
 
     def test_empty_published_batch_does_not_fall_back_to_full_library(self):
         self.meta["publication"]["today_added"] = 0
-        with self.assertRaisesRegex(ValueError, "最新一期.*没有新增"):
+        with self.assertRaisesRegex(ValueError, "no entries in the latest publication"):
             self.resolve({"FRAME 原版": True, "仅今日更新": True})
         self.assertEqual(self.calls, ["library/meta"])
 
@@ -129,7 +129,7 @@ class FrameWildcardTests(unittest.TestCase):
                 for row in value.get("items", []):
                     row["added_at"] = added
                 return value
-            with self.subTest(added=added), self.assertRaisesRegex(ValueError, "日期不一致"):
+            with self.subTest(added=added), self.assertRaisesRegex(ValueError, "entry dates do not match"):
                 self.resolve({"FRAME 改写版": True, "仅今日更新": True}, fetch=fetch)
 
     def test_legacy_naive_date_matches_the_websites_pacific_interpretation(self):
@@ -146,7 +146,7 @@ class FrameWildcardTests(unittest.TestCase):
             if "/query?" in path:
                 value["publication"]["updated_at"] = "2026-11-11T04:00:00+00:00"
             return value
-        with self.assertRaisesRegex(ValueError, "库正在更新"):
+        with self.assertRaisesRegex(ValueError, "catalog is updating"):
             self.resolve({"FRAME 原版": True}, fetch=fetch)
         self.assertEqual(len(self.calls), 4)
         self.assertFalse(any("/items" in path for path in self.calls))
@@ -176,7 +176,7 @@ class FrameWildcardTests(unittest.TestCase):
             if "/items?" in path:
                 value["items"][0].pop("prompt_krea2")
             return value
-        with self.assertRaisesRegex(ValueError, "缺少所选类别"):
+        with self.assertRaisesRegex(ValueError, "lacks a complete prompt"):
             self.resolve({"FRAME 原版": True}, fetch=fetch)
 
     def test_network_request_is_bounded_public_and_contains_no_user_prompt(self):

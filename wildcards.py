@@ -19,9 +19,9 @@ def identity(value: dict) -> str:
 
 def parse(text: str, mode: str) -> list[str]:
     if not isinstance(text, str) or len(text.encode("utf-8")) > MAX_IMPORT_BYTES:
-        raise ValueError("Wildcard 文件最多 4 MiB，须为 UTF-8 文本")
+        raise ValueError("Wildcard files must be UTF-8 text, at most 4 MiB")
     if "\0" in text or any(ord(c) < 32 and c not in "\r\n\t" for c in text):
-        raise ValueError("Wildcard 须为纯文本，不能包含二进制控制字符")
+        raise ValueError("Wildcard files must be plain text without binary control characters")
     if mode not in {"lines", "blocks"}:
         raise ValueError("Choose lines or blank-line-separated blocks")
     text = text.removeprefix("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
@@ -29,9 +29,9 @@ def parse(text: str, mode: str) -> list[str]:
     raw = lines if mode == "lines" else re.split(r"\n[ \t]*\n", "\n".join(lines))
     entries = [entry.strip() for entry in raw if entry.strip()]
     if not entries or len(entries) > MAX_ENTRIES:
-        raise ValueError("Wildcard 须含 1 至 50000 条内容")
+        raise ValueError("Wildcard libraries must contain 1 to 50000 entries")
     if any(len(entry.encode("utf-8")) > 32768 for entry in entries):
-        raise ValueError("Wildcard 单条内容最多 32 KiB")
+        raise ValueError("Each wildcard entry must be at most 32 KiB")
     return entries
 
 
@@ -50,7 +50,7 @@ def load(ident: str) -> dict:
         raise ValueError("Wildcard library is too large")
     value = json.loads(body)
     if not isinstance(value, dict) or identity(value) != ident:
-        raise ValueError("Wildcard 库已被修改，请重新导入并保存配方")
+        raise ValueError("The wildcard library changed; import it again and save a new recipe")
     return value
 
 
@@ -61,7 +61,7 @@ def import_text(name: str, text: str, mode: str) -> dict:
     ident = identity(value)
     libraries = index()
     if len(libraries) >= 128 and not any(row["id"] == ident for row in libraries):
-        raise ValueError("最多导入 128 份词库")
+        raise ValueError("Import at most 128 local libraries")
     result = {"id": ident, "name": name, "count": len(entries), "mode": mode}
     path = config.directory() / "wildcards" / (ident + ".json")
     config.atomic_json(path, value)

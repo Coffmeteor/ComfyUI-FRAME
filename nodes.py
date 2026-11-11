@@ -14,6 +14,21 @@ BOOLEAN = ("BOOLEAN", {"default": False})
 CONTROLS = ("横图", "方图", "手机壁纸", "一百万像素", "高清重绘", "面部细修", "SeedVR2修复", "固定随机种子", "备用模型")
 
 
+class FrameSetup:
+    """Portable first-use entry point; the desktop button opens local setup."""
+    CATEGORY = "FRAME"
+    RETURN_TYPES = ()
+    FUNCTION = "setup"
+    DESCRIPTION = "Configure your own Krea2 models and LoRAs, then generate your local desktop/phone workflow."
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {}}
+
+    def setup(self):
+        return ()
+
+
 class FrameSource:
     CATEGORY = "FRAME"
     RETURN_TYPES = ("FRAME_SOURCE",)
@@ -231,9 +246,10 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
 
 
 NODE_CLASS_MAPPINGS = {"FrameSource": FrameSource, "FramePrompt": FramePrompt, "FrameLora": FrameLora,
-                       "FrameResizeShortEdge": FrameResizeShortEdge, "FrameSave": FrameSave}
+                       "FrameResizeShortEdge": FrameResizeShortEdge, "FrameSave": FrameSave, "FrameSetup": FrameSetup}
 NODE_DISPLAY_NAME_MAPPINGS = {"FrameSource": "FRAME · 在线词库", "FramePrompt": "FRAME · 提示词组合",
-                            "FrameLora": "FRAME · LoRA 与触发词", "FrameResizeShortEdge": "FRAME · 短边缩放"}
+                            "FrameLora": "FRAME · LoRA 与触发词", "FrameResizeShortEdge": "FRAME · 短边缩放",
+                            "FrameSetup": "FRAME · Start Here"}
 
 
 def register_recipe(ident, recipe):

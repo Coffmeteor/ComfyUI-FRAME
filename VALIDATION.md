@@ -1,13 +1,20 @@
-# Version 0.2.1 validation scope
+# Version 0.2.2 validation scope
+
+The portable starter uses only the static `FrameSetup` node and native Markdown
+notes, with Manager/Registry dependency metadata. It contains no machine-local
+snapshot IDs or model/LoRA bindings. Its desktop button opens the recipe editor;
+the generated-workflow button opens the saved local graph. No installer script
+is included.
 
 A physical phone report for 0.2.0 showed both source menus as editable text
 fields. Desktop combo rendering did not prove mobile rendering. Version 0.2.1
 emits complete two-part enum specs with explicit defaults and option lists;
 the same snapshot IDs and selection semantics are preserved. The schema contract
 is checked in the unit suite. Physical phone dropdown rendering requires a
-fresh node-definition download and remains a separate acceptance step.
+fresh node-definition download. The owner subsequently confirmed that both
+dropdowns work on the physical phone.
 
-The package has 38 unit tests covering configuration validation, immutable
+The package has 39 unit tests covering the portable starter, configuration validation, immutable
 snapshots, user-defined Boolean schemas, named groups and exclusivity, native
 LoRA graph loading, model-only versus model+CLIP application, trigger precedence
 and removal, paths, changed/missing files, source selection, website publication
@@ -55,6 +62,7 @@ shared-prompt mutation checks and WebP metadata preservation. Shared-account
 execution on a physical phone is not represented as an automated pass.
 
 Windows and Linux unit jobs are configured in CI. Linux GPU execution was
-tested; Windows GPU execution and physical phone rendering remain user-side
-acceptance. Registry upload success must be distinguished from Registry review
+tested; Windows GPU execution remains user-side acceptance. Phone dropdown
+rendering has owner confirmation; that does not claim full shared-account phone
+execution coverage. Registry upload success must be distinguished from Registry review
 and Manager indexing.

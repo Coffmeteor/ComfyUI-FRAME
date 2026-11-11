@@ -47,6 +47,16 @@ class Graph:
 
 
 class FrameTests(unittest.TestCase):
+    def test_portable_starter_uses_static_registry_node_without_local_recipe(self):
+        template = json.loads((ROOT / 'workflows' / 'FRAME Krea2 - Start Here.json').read_text())
+        executable = [n for n in template['nodes'] if n['type'] != 'MarkdownNote']
+        self.assertEqual([n['type'] for n in executable], ['FrameSetup'])
+        self.assertEqual(executable[0]['properties']['cnr_id'], 'frame-nodes')
+        self.assertEqual(executable[0]['properties']['aux_id'], 'Coffmeteor/ComfyUI-FRAME')
+        self.assertNotIn('snapshot', template.get('extra', {}).get('frame', {}))
+        self.assertEqual(nodes.FrameSetup.INPUT_TYPES(), {'required': {}})
+        self.assertEqual(nodes.FrameSetup().setup(), ())
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

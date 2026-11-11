@@ -10,6 +10,11 @@ FRAME 把本机模型、LoRA 强度、触发词和分组保存为不可变配方
 
 ## 安装
 
+通用入口在 [`workflows/FRAME Krea2 - Start Here.json`](workflows/FRAME%20Krea2%20-%20Start%20Here.json)。
+直接加载后点击 **Configure models & LoRAs**，绑定自己的模型并生成本机工作流。
+入口带有 Registry 的 `frame-nodes` 依赖信息；缺失节点使用 Manager 的
+**Install Missing Custom Nodes** 安装，再重启。不需要配套安装脚本。
+
 在 ComfyUI Manager 搜索 **FRAME Nodes**。Registry 版本若仍在审核，
 可通过 **Install via Git URL** 安装：
 
@@ -144,6 +149,15 @@ Restart ComfyUI while idle to refresh ComfyLink's node snapshot, upload the save
 workflow, and sync it on the phone. Updating a desktop recipe requires syncing
 the newly generated workflow; older queued jobs retain their original recipe.
 
+For a portable first-use entry point, load
+[`FRAME Krea2 - Start Here.json`](workflows/FRAME%20Krea2%20-%20Start%20Here.json)
+and click **Configure models & LoRAs**. It carries the `frame-nodes` Registry
+dependency metadata for Manager's **Install Missing Custom Nodes**. Configure
+and save your own recipe, then click **Open generated workflow / 打开已生成工作流**.
+The starter is a setup template; generation becomes available after choosing
+your local models. No external installer script is required. The source ZIP can
+also be extracted as `ComfyUI/custom_nodes/ComfyUI-FRAME/`, then restarted.
+
 Set CLIP strength to zero for model-only LoRAs. Automatic triggers come from
 explicit local metadata, never guessed training tags. Manual/none modes are
 available. FRAME original/rewrite catalogs are optional public read-only sources.
@@ -159,7 +173,8 @@ keep their legacy source behavior until regenerated and synced.
 
 Optional enhancements require their listed extensions and local models. Windows
 and Linux paths are covered by unit CI; GPU execution was verified on Linux.
-Windows GPU and physical ComfyLink mobile rendering need local acceptance.
+Windows GPU execution needs local acceptance. The owner confirmed that the two
+ComfyLink dropdowns render correctly after the 0.2.1 node-definition refresh.
 
 ## Development and releases
 

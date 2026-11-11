@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 function el(tag, text = "", parent = null) {
   const node = document.createElement(tag);
   if (text) node.textContent = text;
@@ -40,7 +40,7 @@ export async function buildMobileWorkflow(descriptor) {
     const n = LiteGraph.createNode(type);
     if (!n) throw new Error("Node registration failed: " + type);
     n.title = title; n.pos = [x, y];
-    n.properties = { ...n.properties, cnr_id: "frame-nodes", ver: VERSION };
+    n.properties = { ...n.properties, cnr_id: "frame-nodes", ver: VERSION, aux_id:"Coffmeteor/ComfyUI-FRAME" };
     graph.add(n);
     return n;
   };
@@ -164,6 +164,15 @@ export async function openEditor() {
   el("button","＋ 添加分组",dialog).onclick = () => addGroup();
   const path = field(dialog,"保存到工作流列表", state.workflow_path);
   const message = el("p","",dialog);
+  const open = el("button","Open generated workflow / 打开已生成工作流",dialog);
+  open.onclick=async()=>{
+    try {
+      const response=await api.getUserData("workflows/"+path.value.trim());
+      if(!response.ok) throw new Error("Save your recipe first / 请先保存配方");
+      await app.loadGraphData(await response.json());
+      dialog.close();dialog.remove();
+    } catch(e) {message.textContent=e.message;}
+  };
   const save = el("button","保存配方并生成手机工作流",dialog);
   save.style.cssText="font-size:16px;padding:12px 20px;margin:12px";
   save.onclick = async () => {
@@ -192,5 +201,14 @@ export async function openEditor() {
   dialog.showModal();
 }
 
-app.registerExtension({name:"FRAME.RecipeEditor",commands:[{id:"FRAME.OpenRecipeEditor",label:"FRAME · 配方设置",function:openEditor}],
+app.registerExtension({name:"FRAME.RecipeEditor",commands:[{id:"FRAME.OpenRecipeEditor",label:"FRAME · 配方设置",function:()=>openEditor()}],
+  async beforeRegisterNodeDef(nodeType,nodeData) {
+    if(nodeData.name!=="FrameSetup") return;
+    const original=nodeType.prototype.onNodeCreated;
+    nodeType.prototype.onNodeCreated=function(...args){
+      original?.apply(this,args);
+      this.addWidget("button","Configure models & LoRAs",null,()=>openEditor(),{serialize:false});
+      this.size=[360,100];
+    };
+  },
   menuCommands:[{path:["FRAME"],commands:["FRAME.OpenRecipeEditor"]}]});

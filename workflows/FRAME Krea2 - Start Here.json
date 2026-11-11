@@ -1,0 +1,140 @@
+{
+  "id": "9c7fff95-5210-4562-b0a5-59689d165c11",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "FrameSetup",
+      "pos": [
+        60,
+        130
+      ],
+      "size": [
+        360,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "FRAME Krea2 — Start Here",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "Node name for S&R": "FrameSetup",
+        "cnr_id": "frame-nodes",
+        "ver": "0.2.2",
+        "aux_id": "Coffmeteor/ComfyUI-FRAME"
+      },
+      "widgets_values": [
+        null
+      ],
+      "widgets_values_named": {
+        "Configure models & LoRAs": null
+      }
+    },
+    {
+      "id": 2,
+      "type": "MarkdownNote",
+      "pos": [
+        490,
+        130
+      ],
+      "size": [
+        550,
+        150
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "1 · Install FRAME Nodes",
+      "properties": {},
+      "widgets_values": [
+        "# Required custom node: FRAME Nodes\nAvailable in ComfyUI Manager / Comfy Registry as **frame-nodes**.\nUse **Install Missing Custom Nodes**, then restart ComfyUI.\nSource: https://github.com/Coffmeteor/ComfyUI-FRAME"
+      ],
+      "widgets_values_named": {
+        "text": "# Required custom node: FRAME Nodes\nAvailable in ComfyUI Manager / Comfy Registry as **frame-nodes**.\nUse **Install Missing Custom Nodes**, then restart ComfyUI.\nSource: https://github.com/Coffmeteor/ComfyUI-FRAME"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 3,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        320
+      ],
+      "size": [
+        980,
+        150
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "2 · Configure your local recipe",
+      "properties": {},
+      "widgets_values": [
+        "# Configure once on desktop\nClick **Configure models & LoRAs**. Select your Krea2 model, text encoder and VAE.\nAdd your own LoRA groups, strengths and trigger words; optionally import UTF-8 .txt wildcards.\nSave, then click **Open generated workflow / 打开已生成工作流**."
+      ],
+      "widgets_values_named": {
+        "text": "# Configure once on desktop\nClick **Configure models & LoRAs**. Select your Krea2 model, text encoder and VAE.\nAdd your own LoRA groups, strengths and trigger words; optionally import UTF-8 .txt wildcards.\nSave, then click **Open generated workflow / 打开已生成工作流**."
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 4,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        510
+      ],
+      "size": [
+        980,
+        120
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "3 · Generate on desktop or phone",
+      "properties": {},
+      "widgets_values": [
+        "# Prompt sources + simple switches\nChoose Manual, FRAME Original/Rewrite (full library or latest update), or a local library.\nUse **Reuse current** to keep a prompt; **Random each generation** draws another.\nComfyLink: restart while idle, upload the generated workflow, then sync on your phone."
+      ],
+      "widgets_values_named": {
+        "text": "# Prompt sources + simple switches\nChoose Manual, FRAME Original/Rewrite (full library or latest update), or a local library.\nUse **Reuse current** to keep a prompt; **Random each generation** draws another.\nComfyLink: restart while idle, upload the generated workflow, then sync on your phone."
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        20,
+        200
+      ]
+    },
+    "frame": {
+      "template": "portable-setup",
+      "version": "0.2.2"
+    }
+  },
+  "version": 0.4
+}

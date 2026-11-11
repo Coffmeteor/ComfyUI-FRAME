@@ -29,7 +29,7 @@ def register():
         require_desktop(request)
         recipe = config.current()
         settings = config.directory() / "editor.json"
-        return web.json_response({"version": "0.2.1", "recipe": recipe, "wildcards": wildcards.index(),
+        return web.json_response({"version": "0.2.2", "recipe": recipe, "wildcards": wildcards.index(),
             "workflow_path": config.read_json(settings).get("workflow_path", "FRAME/FRAME Krea2 Mobile.json") if settings.exists() else "FRAME/FRAME Krea2 Mobile.json",
             "models": {key: config.choices(category) for key, category in config.MODEL_FIELDS.items()},
             "loras": config.choices("loras")}, headers={"Cache-Control": "no-store"})

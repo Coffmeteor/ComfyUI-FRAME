@@ -1,0 +1,50 @@
+diff --git a/comfylink/jobs.py b/comfylink/jobs.py
+index df9e7de..59c9e8a 100644
+--- a/comfylink/jobs.py
++++ b/comfylink/jobs.py
+@@ -182,6 +182,23 @@ def encode_output(
+         if prompt_str is not None:
+             # R-1.0.6-30:workflow JSON 照写,另附直通的正/负向全文(提得出才写)。
+             positive, negative = _role_texts(prompt_str)
++            # FRAME expands its final conditioning inside the native graph.
++            # Its own saved receipt carries the resolved text, including triggers.
++            frame_text = im.info.get("frame")
++            if isinstance(frame_text, str) and len(frame_text) <= 256 * 1024:
++                try:
++                    receipt = json.loads(frame_text)
++                    recipe = receipt.get("recipe", "")
++                    workflow = json.loads(prompt_str)
++                    known = (isinstance(recipe, str) and re.fullmatch(r"[a-f0-9]{20}", recipe)
++                             and isinstance(workflow, dict)
++                             and any(isinstance(n, dict) and n.get("class_type") == "FrameKrea2_" + recipe
++                                     for n in workflow.values()))
++                    final_text = receipt.get("prompts", {}).get("base", "")
++                    if known and receipt.get("schema_version") == 1 and isinstance(final_text, str) and len(final_text) <= 100000:
++                        positive, negative = final_text, ""
++                except (ValueError, TypeError, AttributeError):
++                    pass
+             save_kwargs["xmp"] = _xmp_with_prompt(
+                 prompt_str, positive=positive, negative=negative)
+         buf = BytesIO()
+diff --git a/comfylink/sharing.py b/comfylink/sharing.py
+index 72001f0..a4901fb 100644
+--- a/comfylink/sharing.py
++++ b/comfylink/sharing.py
+@@ -6,6 +6,7 @@ import hashlib
+ import json
+ import math
+ import os
++import re
+ from pathlib import Path
+ 
+ from .config import _state_path
+@@ -88,7 +89,8 @@ def matches_template(prompt: dict, template: dict, object_info: dict,
+             elif kind == "BOOLEAN":
+                 if not isinstance(value, bool):
+                     return False
+-            elif kind == "STRING" and cls in _TEXT_NODES and field in {"text", "text_g", "text_l"}:
++            elif kind == "STRING" and ((cls in _TEXT_NODES and field in {"text", "text_g", "text_l"})
++                    or (field == "text" and (cls == "FramePrompt" or re.fullmatch(r"FrameKrea2_[a-f0-9]{20}", cls or "")))):
+                 if not isinstance(value, str) or len(value) > 16000:
+                     return False
+             else:

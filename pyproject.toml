@@ -1,0 +1,18 @@
+[project]
+name = "frame-nodes"
+version = "0.1.0"
+description = "Desktop LoRA recipes, automatic triggers, FRAME prompt libraries and switch-only phone workflows"
+authors = [{name = "Coffmeteor"}]
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = ["tzdata>=2024.1; sys_platform == 'win32'"]
+
+[project.urls]
+Repository = "https://github.com/Coffmeteor/ComfyUI-FRAME"
+Documentation = "https://github.com/Coffmeteor/ComfyUI-FRAME#readme"
+"Bug Tracker" = "https://github.com/Coffmeteor/ComfyUI-FRAME/issues"
+
+[tool.comfy]
+PublisherId = "coffmeteor"
+DisplayName = "FRAME Nodes"
+requires-comfyui = ">=0.43.0"

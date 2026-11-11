@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.env*
+*.token
+*.zip
+dist/
+build/
+*.egg-info/
+user/
+snapshots/
+cache/
+logs/
+output/
+current.json
+node_modules/

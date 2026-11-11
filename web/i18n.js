@@ -4,6 +4,7 @@ export function resolveLanguage(preference, locale) {
   return String(locale || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
 }
 const zh = {
+  "Library modes ignore manual text by default. Enable Append manual text in the source card to include it. Manual-only mode always uses your text.": "词库模式默认忽略手动框；需要补充时，在来源卡开启追加手动提示词。手动填写模式始终使用手动框。",
   "— Not configured —": "— 未设置 —",
   "Prompt source": "提示词来源",
   "Prompt & Quality": "提示词与画质",

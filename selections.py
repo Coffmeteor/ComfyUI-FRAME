@@ -36,9 +36,13 @@ def modes(recipe: dict) -> dict[str, str]:
 
 
 def resolve(text: str, source: dict) -> tuple[str, dict | None]:
-    if set(source) != {"snapshot", "choice", "mode"} or source["mode"] not in MODES:
+    if not isinstance(source, dict) or not {"snapshot", "choice", "mode"} <= set(source) or source["mode"] not in MODES:
         raise ValueError("Invalid prompt selection")
     recipe = config.load(source["snapshot"])
+    explicit = recipe.get("prompt_policy", "legacy") == "explicit"
+    expected = {"snapshot", "choice", "mode"} | ({"append_manual"} if explicit else set())
+    if set(source) != expected or (explicit and type(source["append_manual"]) is not bool):
+        raise ValueError("Invalid manual text switch; sync this recipe's workflow")
     allowed = set(choices(recipe).values())
     choice = source["choice"]
     if not isinstance(choice, str) or choice not in allowed:
@@ -76,8 +80,11 @@ def resolve(text: str, source: dict) -> tuple[str, dict | None]:
             cached = {"selected": selected, "receipt": receipt}
             config.atomic_json(path, cached)
         receipt = copy.deepcopy(cached["receipt"])
-        expanded = cached["selected"] + ("\n" + text.strip() if text.strip() else "")
-        receipt.update(supplement=text.strip(), expanded_prompt=expanded,
+        manual = text.strip()
+        supplement = manual if not explicit or source["append_manual"] else ""
+        expanded = cached["selected"] + ("\n" + supplement if supplement else "")
+        receipt.update(supplement=supplement, expanded_prompt=expanded,
+                       manual_text_ignored=bool(manual and not supplement),
                        selection_mode=source["mode"], reused_selection=reused,
                        prompt_sha256=hashlib.sha256(expanded.encode()).hexdigest())
         return expanded, receipt

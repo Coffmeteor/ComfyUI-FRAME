@@ -205,6 +205,8 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
     language = recipe_language(recipe)
     source_label = caption("Prompt source", "提示词来源", language)
     mode_label = caption("Selection mode", "抽词方式", language)
+    append_label = caption("Append manual text", "追加手动提示词", language)
+    explicit = recipe.get("prompt_policy", "legacy") == "explicit"
     main_title = caption("Prompt & Quality", "提示词与画质", language)
     main = "FrameKrea2_" + ident
     mappings = {main: type(main, (MobileGenerate,), {"SNAPSHOT": ident, "LANGUAGE": language})}
@@ -217,16 +219,27 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
         sources, mode_names = list(source_choices), list(mode_choices)
         # Include the complete two-part widget spec and explicit enum metadata
         # for remote form readers, not only the minimal ComfyUI tuple.
-        return {"required": {
+        required = {
             source_label: (sources, {"default": sources[0], "options": sources,
                               "tooltip": caption("Choose a manual prompt, FRAME online catalog or imported local library", "选择手动提示词、FRAME 在线来源或已导入的本地词库", language)}),
             mode_label: (mode_names, {"default": mode_names[0], "options": mode_names,
-                            "tooltip": caption("Reuse keeps the current prompt; random updates it. Image seeds are independent.", "沿用当前保留已选条目；每次随机会更新当前条目，图片种子独立", language)})}}
+                            "tooltip": caption("Reuse keeps the current prompt; random updates it. Image seeds are independent.", "沿用当前保留已选条目；每次随机会更新当前条目，图片种子独立", language)})}
+        if explicit:
+            required[append_label] = ("BOOLEAN", {"default": False, "tooltip": caption(
+                "Online/local libraries ignore manual text unless this switch is on. Manual-only mode always uses your text.",
+                "在线或本地词库默认忽略手动框，开启后才追加；手动填写模式始终使用手动提示词。", language)})
+        return {"required": required}
 
     def select_source(self, **options):
-        if set(options) != {source_label, mode_label} or options[source_label] not in source_choices or options[mode_label] not in mode_choices:
+        expected = {source_label, mode_label} | ({append_label} if explicit else set())
+        if set(options) != expected or options[source_label] not in source_choices or options[mode_label] not in mode_choices:
             raise ValueError("Invalid prompt source or selection mode")
-        return ({"snapshot": ident, "choice": source_choices[options[source_label]], "mode": mode_choices[options[mode_label]]},)
+        selected = {"snapshot": ident, "choice": source_choices[options[source_label]], "mode": mode_choices[options[mode_label]]}
+        if explicit:
+            if type(options[append_label]) is not bool:
+                raise ValueError("Append manual text must be a Boolean")
+            selected["append_manual"] = options[append_label]
+        return (selected,)
 
     mappings[source_type] = type(source_type, (), {"CATEGORY": "FRAME/Mobile", "RETURN_TYPES": ("FRAME_SOURCE",),
                      "FUNCTION": "select", "INPUT_TYPES": classmethod(source_schema), "select": select_source})

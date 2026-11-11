@@ -59,7 +59,7 @@ Choose exactly one source:
 
 Original and Rewrite remain separate catalogs. Latest update follows the website's most recently published update batch, including daily additions. It does not become empty simply because your phone passes midnight. Website: https://frame.coffmetoer.tech/
 
-You can keep manual prompt text while using a library: it becomes a supplement. The final prompt order is enabled LoRA triggers, the complete selected library entry, then your supplement. Turning a LoRA off removes its automatic trigger injection while preserving your own text.
+You can keep manual prompt text while using a library. It is ignored by default; enable **Append manual text** in the source card to include it as a supplement. Manual-only mode always uses your text. The final prompt order is enabled LoRA triggers, the complete selected library entry, then your supplement. Turning a LoRA off removes its automatic trigger injection while preserving your own text. The append switch does not erase the manual field or change the current library selection. Existing pre-0.2.4 recipes retain their original automatic-append behavior until resaved and synced.
 
 Online selection reads the public FRAME catalog API. It does not upload your prompt, images, model inventory or account credentials to FRAME. Manual and imported local-library modes work without that website.
 

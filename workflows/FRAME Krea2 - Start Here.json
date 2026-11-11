@@ -28,7 +28,7 @@
         },
         "Node name for S&R": "FrameSetup",
         "cnr_id": "frame-nodes",
-        "ver": "0.2.3",
+        "ver": "0.2.4",
         "aux_id": "Coffmeteor/ComfyUI-FRAME"
       },
       "widgets_values": [
@@ -111,7 +111,7 @@
       "title": "3 · Generate on desktop or phone",
       "properties": {},
       "widgets_values": [
-        "# Prompt sources + simple switches\nChoose Manual, FRAME Original/Rewrite (full library or latest update), or a local library.\nUse **Reuse current** to keep a prompt; **Random each generation** draws another.\nComfyLink: restart while idle, upload the generated workflow, then sync on your phone."
+        "# Prompt sources + simple switches\nChoose Manual, FRAME Original/Rewrite (full library or latest update), or a local library.\nUse **Reuse current** to keep a prompt; **Random each generation** draws another.\nComfyLink: restart while idle, upload the generated workflow, then sync on your phone.\nLibrary modes ignore manual text unless **Append manual text** is enabled."
       ],
       "widgets_values_named": {
         "text": "# Prompt sources + simple switches\nChoose Manual, FRAME Original/Rewrite (full library or latest update), or a local library.\nUse **Reuse current** to keep a prompt; **Random each generation** draws another.\nComfyLink: restart while idle, upload the generated workflow, then sync on your phone."
@@ -133,7 +133,7 @@
     },
     "frame": {
       "template": "portable-setup",
-      "version": "0.2.3"
+      "version": "0.2.4"
     }
   },
   "version": 0.4

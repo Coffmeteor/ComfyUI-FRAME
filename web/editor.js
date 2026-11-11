@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const VERSION = "0.2.3";
+const VERSION = "0.2.4";
 import { resolveLanguage, translate } from "./i18n.js";
 const LANGUAGE_KEY = "FRAME.editorLanguage";
 function preference() { try { return localStorage.getItem(LANGUAGE_KEY) || "auto"; } catch { return "auto"; } }
@@ -98,6 +98,7 @@ export async function openEditor() {
     }
   };
   el("p", "Configure models, LoRAs and local libraries on desktop. On your phone, use two menus plus quality and LoRA switches. Files, strengths and triggers stay on this computer.", dialog);
+  el("p", "Library modes ignore manual text by default. Enable Append manual text in the source card to include it. Manual-only mode always uses your text.", dialog);
   const title = field(dialog, "Workflow name", recipe.name);
   const exportLanguage = field(dialog, "Workflow labels", recipe.language || "zh", ["en", "zh", "bilingual"]);
   for (const option of exportLanguage.options) { option.dataset.frameI18n = ({en:"English",zh:"Chinese",bilingual:"Bilingual"})[option.value] || "— Not configured —"; option.textContent = t(option.dataset.frameI18n); }

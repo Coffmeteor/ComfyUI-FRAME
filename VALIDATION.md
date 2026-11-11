@@ -1,4 +1,8 @@
-# Version 0.2.3 validation scope
+# Version 0.2.4 validation scope
+
+Version 0.2.4 gives newly saved recipes an explicit **Append manual text** switch, off by default. Online and local libraries use only the selected entry unless this switch is enabled; manual-only mode still uses the text field. Six additional Python tests cover all export languages, non-Boolean rejection, manual-only mode, cached online/local selection without redrawing, immutable policy bindings and unchanged legacy snapshots.
+
+Native frontend construction and server previews confirmed off/on/off prompt composition while retaining the manual field and the selected local entry. A real 1184×1760 GPU output retained the nonempty manual field in its workflow, while its executed prompt and source receipt excluded that text and recorded `manual_text_ignored: true`. The owner workflow was migrated with its latest submitted controls and cached selections preserved.
 
 The desktop editor supports Auto (ComfyUI locale), English and Chinese, with a separate English/Chinese/bilingual export setting. Existing language-less snapshots retain their exact Chinese schema. Four language tests cover English defaults, immutable language bindings, legacy restoration, normalized controls and preservation of custom names. Two JavaScript tests cover locale resolution and label translation.
 
@@ -18,7 +22,7 @@ is checked in the unit suite. Physical phone dropdown rendering requires a
 fresh node-definition download. The owner subsequently confirmed that both
 dropdowns work on the physical phone.
 
-The package has 43 Python unit tests covering the portable starter, configuration validation, immutable
+The package has 49 Python unit tests covering the portable starter, configuration validation, immutable
 snapshots, user-defined Boolean schemas, named groups and exclusivity, native
 LoRA graph loading, model-only versus model+CLIP application, trigger precedence
 and removal, paths, changed/missing files, source selection, website publication

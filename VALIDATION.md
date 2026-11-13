@@ -1,4 +1,8 @@
-# Version 0.2.4 validation scope
+# Version 0.2.5 validation scope
+
+Version 0.2.5 refreshes the existing paired ComfyLink node-definition snapshot after hot-registering a recipe, then announces the new fingerprint and refresh receipt. Nine asynchronous regression tests cover optional/unsupported plugins, successful and unchanged uploads, storage and announcement failures, per-account isolation, timeouts and loaded-module discovery. Responses expose no tokens, account identifiers or signed capabilities.
+
+Native hot-save acceptance created a previously unknown recipe after startup: its source schema contains five menu choices, and the save response confirmed one node-definition upload plus a successful relay announcement, without restarting after the save. The owner snapshot, saved workflow, all strength fields/values and the existing mobile-strength implementation were preserved.
 
 Version 0.2.4 gives newly saved recipes an explicit **Append manual text** switch, off by default. Online and local libraries use only the selected entry unless this switch is enabled; manual-only mode still uses the text field. Six additional Python tests cover all export languages, non-Boolean rejection, manual-only mode, cached online/local selection without redrawing, immutable policy bindings and unchanged legacy snapshots.
 
@@ -22,7 +26,7 @@ is checked in the unit suite. Physical phone dropdown rendering requires a
 fresh node-definition download. The owner subsequently confirmed that both
 dropdowns work on the physical phone.
 
-The package has 49 Python unit tests covering the portable starter, configuration validation, immutable
+The package has 61 Python unit tests covering the portable starter, configuration validation, immutable
 snapshots, user-defined Boolean schemas, named groups and exclusivity, native
 LoRA graph loading, model-only versus model+CLIP application, trigger precedence
 and removal, paths, changed/missing files, source selection, website publication

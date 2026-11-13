@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const VERSION = "0.2.4";
+const VERSION = "0.2.5";
 import { resolveLanguage, translate } from "./i18n.js";
 const LANGUAGE_KEY = "FRAME.editorLanguage";
 function preference() { try { return localStorage.getItem(LANGUAGE_KEY) || "auto"; } catch { return "auto"; } }
@@ -216,7 +216,9 @@ export async function openEditor() {
       if (!stored.ok) throw new Error("Workflow save failed: "+stored.status);
       const readback = await api.getUserData("workflows/"+filename);
       if (!readback.ok || JSON.stringify(await readback.json()) !== JSON.stringify(built.ui)) throw new Error(t("Saved workflow verification failed"));
-      message.textContent=t("Generated and saved. Restart ComfyUI while idle, upload this workflow in ComfyLink, then sync your phone. Previous recipes are retained.");
+      message.textContent=result.comfylink?.status === "synced"
+        ? t("Generated and saved. ComfyLink node definitions refreshed. Upload this workflow in ComfyLink, then reopen it on your phone. Previous recipes are retained.")
+        : t("Generated and saved. ComfyLink node definitions were not refreshed. Restart ComfyUI while idle or refresh backend node definitions in ComfyLink before uploading and syncing this workflow. Previous recipes are retained.");
     } catch(e) { message.textContent=e.message; }
     finally { save.disabled=false; }
   };

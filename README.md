@@ -39,12 +39,12 @@ Recipes are immutable and stored under your local ComfyUI user directory. Change
 ## ComfyLink phone setup
 
 1. Save and generate the workflow on desktop.
-2. Restart ComfyUI while its queue is idle so ComfyLink refreshes its node definitions.
+2. FRAME 0.2.5 refreshes the paired ComfyLink backend node definitions when saving a recipe. Check the save result. If it reports a refresh failure, restart ComfyUI while idle or refresh backend node definitions before uploading.
 3. Upload or update the generated workflow in the desktop ComfyLink panel.
 4. Sync the workflow on your phone.
 5. Use the **Prompt source** and **Selection mode** dropdowns, optional manual text, quality switches and your named LoRA switches.
 
-If a source or mode field appears as an editable text box, refresh the phone's backend node/model definitions, then sync the workflow again. Uploading a workflow and refreshing node definitions are separate operations. After changing model bindings, LoRA groups, selected libraries or workflow language, generate and sync the new workflow again.
+If a source or mode field appears as an editable text box, refresh the phone's backend node/model definitions, then sync the workflow again. Workflow upload and node-definition refresh are separate operations; FRAME now performs the latter automatically on recipe save when the installed ComfyLink plugin supports it. This fixes new snapshot nodes appearing as text fields after a hot save. Offline, unpaired or unsupported plugins leave the desktop recipe usable and show a refresh warning instead of reporting success. No pairing permissions are changed. After changing model bindings, LoRA groups, selected libraries or workflow language, generate and sync the new workflow again.
 
 The phone interface avoids file selectors, strength fields and trigger editing. Desktop configuration owns those details. Existing accounts and backend pairing permissions are not changed by this extension. Shared-backend execution may require a compatible ComfyLink version; see the source repository's compatibility notes.
 

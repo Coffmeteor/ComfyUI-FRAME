@@ -6,6 +6,7 @@ from aiohttp import web
 from . import config, wildcards
 from .nodes import register_recipe, recipe_classes
 from .nodes import MobileGenerate
+from . import comfylink_sync
 
 
 def require_desktop(request):
@@ -29,7 +30,7 @@ def register():
         require_desktop(request)
         recipe = config.current()
         settings = config.directory() / "editor.json"
-        return web.json_response({"version": "0.2.4", "recipe": recipe, "wildcards": wildcards.index(),
+        return web.json_response({"version": "0.2.5", "recipe": recipe, "wildcards": wildcards.index(),
             "workflow_path": config.read_json(settings).get("workflow_path", "FRAME/FRAME Krea2 Mobile.json") if settings.exists() else "FRAME/FRAME Krea2 Mobile.json",
             "models": {key: config.choices(category) for key, category in config.MODEL_FIELDS.items()},
             "loras": config.choices("loras")}, headers={"Cache-Control": "no-store"})
@@ -84,9 +85,15 @@ def register():
             if path is not None:
                 config.atomic_json(config.directory() / "editor.json", {"workflow_path": path})
             descriptor = register_recipe(ident, recipe)
-            return web.json_response({"ok": True, "descriptor": descriptor})
+            metadata = await comfylink_sync.refresh()
+            return web.json_response({"ok": True, "descriptor": descriptor, "comfylink": metadata})
         except (OSError, ValueError, KeyError, TypeError) as exc:
             return web.json_response({"error": str(exc)}, status=400)
+
+    @routes.post("/frame-nodes/comfylink/refresh")
+    async def refresh_comfylink(request):
+        require_desktop(request)
+        return web.json_response(await comfylink_sync.refresh())
 
     @routes.post("/frame-nodes/preview")
     async def preview(request):

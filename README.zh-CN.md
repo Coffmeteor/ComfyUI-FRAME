@@ -194,3 +194,5 @@ Registry upload and platform review/indexing are separate states. See
 
 MIT licensed package code. Model weights and public website content retain their
 own terms; they are not redistributed in the node package.
+
+0.2.5：保存配方后自动通过已安装的 ComfyLink 插件刷新已配对后端的节点定义并通知手机缓存更新，避免新快照的下拉菜单再次退化为文本框。请检查保存结果；离线、未配对或插件不兼容会显示提醒，桌面配方仍保存成功。上传工作流后在手机同步并重新打开参数页。

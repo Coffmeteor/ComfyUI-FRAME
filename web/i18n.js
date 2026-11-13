@@ -61,6 +61,8 @@ const zh = {
   "Enter a relative .json path inside your workflow directory": "请填写工作流目录内的相对 .json 文件名",
   "Workflow save failed: ": "保存工作流失败：",
   "Saved workflow verification failed": "工作流保存后校验失败",
+  "Generated and saved. ComfyLink node definitions refreshed. Upload this workflow in ComfyLink, then reopen it on your phone. Previous recipes are retained.": "已生成并保存，ComfyLink 节点信息已刷新。请在 ComfyLink 上传此工作流，再在手机重新打开。旧配方仍保留。",
+  "Generated and saved. ComfyLink node definitions were not refreshed. Restart ComfyUI while idle or refresh backend node definitions in ComfyLink before uploading and syncing this workflow. Previous recipes are retained.": "已生成并保存，但 ComfyLink 节点信息尚未刷新。请在空闲时重启 ComfyUI，或在 ComfyLink 刷新后端节点信息，再上传并同步此工作流。旧配方仍保留。",
   "Generated and saved. Restart ComfyUI while idle, upload this workflow in ComfyLink, then sync your phone. Previous recipes are retained.": "已生成并保存。请在队列空闲时重启 ComfyUI，再在 ComfyLink 上传此工作流并手机同步。旧配方仍保留。",
   "FRAME · Recipe Setup": "FRAME · 配方设置",
   "Editor language": "编辑器语言",

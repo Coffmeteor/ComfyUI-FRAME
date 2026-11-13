@@ -28,7 +28,7 @@
         },
         "Node name for S&R": "FrameSetup",
         "cnr_id": "frame-nodes",
-        "ver": "0.2.4",
+        "ver": "0.2.5",
         "aux_id": "Coffmeteor/ComfyUI-FRAME"
       },
       "widgets_values": [
@@ -133,7 +133,7 @@
     },
     "frame": {
       "template": "portable-setup",
-      "version": "0.2.4"
+      "version": "0.2.5"
     }
   },
   "version": 0.4

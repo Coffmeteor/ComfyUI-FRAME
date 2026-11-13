@@ -92,13 +92,8 @@ def resolve_frame_prompt(prompt: str, options: dict[str, Any], *,
     label = selected_source(options)
     if label is None:
         return prompt.strip(), None
+    fetch = fetch or get_json
     source, catalog, field = SOURCES[label]
-    snapshot = fetch is None and catalog == "library"
-    if snapshot:
-        from .snapshot_source import published_library
-        fetch = published_library()
-    else:
-        fetch = fetch or get_json
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("FRAME selection time must include a timezone")
@@ -161,7 +156,6 @@ def resolve_frame_prompt(prompt: str, options: dict[str, Any], *,
                    "scope_date": scope_date,
                    "catalog_total": total, "eligible_count": eligible, "index": index,
                    "entry_id": row["id"], "added_at": row.get("added_at"), "seed": seed,
-                   "catalog_transport": "published_snapshot" if snapshot else "api",
                    "prompt_field": field, "selected_prompt": text.strip(), "supplement": supplement,
                    "expanded_prompt": expanded, "prompt_sha256": hashlib.sha256(expanded.encode()).hexdigest()}
         return expanded, receipt

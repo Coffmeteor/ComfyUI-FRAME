@@ -9,6 +9,8 @@ import random
 import sys
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
+from io import BytesIO
 from urllib.parse import parse_qs, urlsplit
 
 import importlib.util
@@ -22,6 +24,29 @@ PUBLICATION = {"date": "2026-11-10", "timezone": "America/Los_Angeles", "today_a
 
 
 class FrameWildcardTests(unittest.TestCase):
+    def test_transient_failure_retries_identical_path_on_api_host(self):
+        class Response(BytesIO):
+            def geturl(self):
+                return "https://api.coffmetoer.tech/frame-api/v1/library/meta"
+        error = HTTPError(frame.API + "library/meta", 503, "unavailable", {}, BytesIO())
+        with patch.object(frame, "urlopen", side_effect=[error, Response(b'{"total":12}')]) as call:
+            self.assertEqual(frame.get_json("library/meta"), {"total": 12})
+        self.assertEqual([c.args[0].full_url for c in call.call_args_list], [frame.API + "library/meta", "https://api.coffmetoer.tech/frame-api/v1/library/meta"])
+
+    def test_rate_limit_and_permission_errors_are_not_retried(self):
+        for status in (400, 401, 403, 404, 429):
+            error = HTTPError(frame.API + "library/meta", status, "failed", {}, BytesIO())
+            with self.subTest(status=status), patch.object(frame, "urlopen", side_effect=error) as call:
+                with self.assertRaisesRegex(ValueError, str(status)):
+                    frame.get_json("library/meta")
+                self.assertEqual(call.call_count, 1)
+
+    def test_both_endpoints_down_stops_after_two_reads(self):
+        with patch.object(frame, "urlopen", side_effect=URLError("offline")) as call:
+            with self.assertRaisesRegex(ValueError, "either endpoint"):
+                frame.get_json("library/meta")
+            self.assertEqual(call.call_count, 2)
+
     def setUp(self):
         self.meta = {"total": 50, "publication": copy.deepcopy(PUBLICATION)}
         self.calls = []

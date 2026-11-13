@@ -8,7 +8,7 @@ import random
 import re
 import secrets
 from typing import Any, Callable
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
@@ -38,21 +38,34 @@ def selected_source(options: dict[str, Any]) -> str | None:
 def get_json(path: str) -> dict[str, Any]:
     # Only fixed public catalog paths are constructed here. No user prompt,
     # identity selection, image, account credential or private API is sent.
-    request = Request(API + path, headers={"Accept": "application/json", "Origin": ORIGIN,
-                                         "User-Agent": "FRAME-Nodes/0.2.3"})
-    try:
-        with urlopen(request, timeout=12) as response:
-            if not response.geturl().startswith(API):
-                raise ValueError("FRAME API returned an unexpected destination")
-            body = response.read(MAX_RESPONSE + 1)
-        if len(body) > MAX_RESPONSE:
-            raise ValueError("FRAME API response exceeds the size limit")
-        result = json.loads(body)
-        if not isinstance(result, dict):
-            raise ValueError("FRAME API response has an invalid format")
-        return result
-    except (URLError, TimeoutError, OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ValueError("FRAME website API is temporarily unavailable; try again later") from exc
+    endpoints = (API, "https://api.coffmetoer.tech/frame-api/v1/")
+    for index, endpoint in enumerate(endpoints):
+        request = Request(endpoint + path, headers={"Accept": "application/json", "Origin": ORIGIN,
+                                                   "User-Agent": "FRAME-Nodes/0.2.3"})
+        try:
+            with urlopen(request, timeout=12) as response:
+                if not response.geturl().startswith(endpoint):
+                    raise ValueError("FRAME API returned an unexpected destination")
+                body = response.read(MAX_RESPONSE + 1)
+            if len(body) > MAX_RESPONSE:
+                raise ValueError("FRAME API response exceeds the size limit")
+            result = json.loads(body)
+            if not isinstance(result, dict):
+                raise ValueError("FRAME API response has an invalid format")
+            return result
+        except HTTPError as exc:
+            exc.close()
+            # Retry only public reads, once, through FRAME's existing API host.
+            # Never retry rate limits/auth failures or change the selected pool.
+            if exc.code in (502, 503, 504) and index == 0:
+                continue
+            raise ValueError(f"FRAME prompt API returned HTTP {exc.code}; try again later") from exc
+        except (URLError, TimeoutError, OSError) as exc:
+            if index == 0:
+                continue
+            raise ValueError("FRAME prompt API could not be reached through either endpoint; try again later") from exc
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise ValueError("FRAME prompt API returned invalid JSON; try again later") from exc
 
 
 def publication(meta: dict[str, Any]) -> tuple[int, dict[str, Any]]:

@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const VERSION = "0.3.3";
+const VERSION = "0.3.4";
 import { resolveLanguage, translate } from "./i18n.js";
 const LANGUAGE_KEY = "FRAME.editorLanguage";
 function preference() { try { return localStorage.getItem(LANGUAGE_KEY) || "auto"; } catch { return "auto"; } }

@@ -1,17 +1,29 @@
-# FRAME Krea2 for ComfyLink
+# FRAME Nodes — Workflow Generator for ComfyUI and ComfyLink
 
-Online prompts, automatic LoRA triggers and named phone switches for ComfyUI. Configure your own models and LoRAs on desktop, then generate a compact workflow for ComfyLink. Desktop generation is supported too.
+Choose your models and LoRAs once on the computer, then generate a compact workflow with prompt controls, LoRA switches and strengths, and batch selection. Run it directly in ComfyUI or use it from ComfyLink on your phone. No separate FRAME app or app connector is required.
 
-## Install the required custom node
+## Install, then open the generator
 
-Install **FRAME Nodes** (`frame-nodes`) through **ComfyUI Manager**. It is listed in the official ComfyUI Registry. The portable starter contains the Registry dependency metadata, so Manager's **Install Missing Custom Nodes** can identify it. Restart ComfyUI after installation.
+1. In **ComfyUI Manager**, search for **FRAME Nodes** (`frame-nodes`) and install **0.3.4**. Restart ComfyUI and refresh the browser.
+2. Open the **ComfyUI menu at the top left → FRAME → Recipe Setup**. That opens the generator; you do not need to load a workflow first.
+3. Alternatively, open the included **workflows/FRAME Krea2 - Start Here.json** and click **Configure models & LoRAs**. This starter is a shortcut to the same generator.
 
-- Registry: https://registry.comfy.org/nodes/frame-nodes
-- Source and updates: https://github.com/Coffmeteor/ComfyUI-FRAME
+If Manager has not indexed 0.3.4 yet, download the attached **FRAME-Nodes-0.3.4.zip**, extract its **ComfyUI-FRAME** folder into **ComfyUI/custom_nodes/**, and restart. Keep one installed copy. Manager handles declared dependencies during installation; a manually installed Windows environment may need the declared timezone-data dependency. Registry review and indexing are separate from release upload.
 
-A source ZIP is attached as a fallback: extract its `ComfyUI-FRAME` directory into `ComfyUI/custom_nodes/`, satisfy the declared requirements in your existing ComfyUI environment if needed, and restart. Keep only one installed copy. No installer script or model weights are included. Registry publication and platform review are separate; use the attached source if Manager has not yet received the current release.
+Registry: https://registry.comfy.org/nodes/frame-nodes
+Source: https://github.com/Coffmeteor/ComfyUI-FRAME
 
-Requires ComfyUI 0.43.0 or newer, a compatible Krea2 diffusion model, text encoder and VAE. The complete recipe targets Krea2; generic LoRA and prompt nodes can also be composed with standard ComfyUI workflows.
+## Configure it on the computer
+
+1. In **Models (first-time setup)**, choose your Krea2 diffusion model, text encoder and VAE. The menus list files already installed in ComfyUI; model weights are not included.
+2. In **Krea2 sampling**, set steps, sampler and scheduler. Defaults are 8 steps, CFG 1 and Euler ancestral / beta; adjust them for your model.
+3. In **My LoRAs**, add a group, choose each LoRA file and give it a readable switch name. Set model strength, CLIP strength and application stages. Use CLIP strength 0 for model-only LoRAs.
+4. Choose **auto**, **manual** or **none** for triggers. Auto reads explicit trigger metadata; enter the author's trigger words manually if no metadata is available. Mark a group **Allow only one active LoRA** when its choices should be exclusive.
+5. Optionally import local text libraries. Choose the interface language and the exported **Workflow labels** language separately.
+6. Give the workflow a name and choose its save path. Click **Save recipe & generate workflow**, then **Open generated workflow**.
+7. In the generated workflow, choose your prompt source, enable the LoRAs you want, adjust their strengths and quality options, and click **Run**.
+
+Requires ComfyUI 0.43.0 or newer and your own compatible models. The generated workflow refers to a recipe saved on this computer. Other users should install the generator and configure their own files; do not send them your machine-specific recipe as a universal workflow.
 
 ## Language options
 
@@ -23,30 +35,17 @@ Existing Chinese workflows retain their original field names and recipe bindings
 
 All instructions and desktop screenshots on this resource use the English interface.
 
-## Configure once on desktop
-
-1. Load **FRAME Krea2 - Start Here.json**.
-2. Click **Configure models & LoRAs**, or open **FRAME > Recipe Setup** from the ComfyUI menu.
-3. Select your diffusion model, text encoder and VAE. Default sampling is 8 steps, CFG 1, Euler ancestral / beta. Adjust it for your selected model.
-4. Add LoRA groups, choose your local files and set readable phone switch names, model/CLIP strengths and application stages. Set CLIP strength to 0 for model-only LoRAs. Enable **Allow only one active LoRA** for mutually exclusive identities.
-5. Choose trigger mode: **auto**, **manual** or **none**. Auto reads explicit local sidecar metadata or `modelspec.trigger_phrase`, without guessing from filenames or training tags. If no explicit metadata exists, enter the author's documented trigger words manually or select none.
-6. Optionally import local wildcard libraries and tick those to include in the source menu.
-7. Choose **Workflow labels**, then click **Save recipe & generate workflow** and **Open generated workflow**.
-8. Choose a source, enter optional prompt text, set your switches and run normally.
-
-Recipes are immutable and stored under your local ComfyUI user directory. Changes create a new recipe; older queued jobs retain their original bindings. Share the portable starter with other users so they can configure their own local models. Generated snapshot workflows refer to a local recipe and are not portable by themselves.
-
 ## ComfyLink phone setup
 
 1. Save and generate the workflow on desktop.
-2. FRAME 0.2.5 refreshes the paired ComfyLink backend node definitions when saving a recipe. Check the save result. If it reports a refresh failure, restart ComfyUI while idle or refresh backend node definitions before uploading.
+2. FRAME 0.3.4 refreshes the paired ComfyLink backend node definitions when saving a recipe. Check the save result. If it reports a refresh failure, restart ComfyUI while idle or refresh backend node definitions before uploading.
 3. Upload or update the generated workflow in the desktop ComfyLink panel.
 4. Sync the workflow on your phone.
 5. Use the **Prompt source** and **Selection mode** dropdowns, optional manual text, quality switches and your named LoRA switches.
 
 If a source or mode field appears as an editable text box, refresh the phone's backend node/model definitions, then sync the workflow again. Workflow upload and node-definition refresh are separate operations; FRAME now performs the latter automatically on recipe save when the installed ComfyLink plugin supports it. This fixes new snapshot nodes appearing as text fields after a hot save. Offline, unpaired or unsupported plugins leave the desktop recipe usable and show a refresh warning instead of reporting success. No pairing permissions are changed. After changing model bindings, LoRA groups, selected libraries or workflow language, generate and sync the new workflow again.
 
-The phone interface avoids file selectors, strength fields and trigger editing. Desktop configuration owns those details. Existing accounts and backend pairing permissions are not changed by this extension. Shared-backend execution may require a compatible ComfyLink version; see the source repository's compatibility notes.
+LoRA enable switches and model-strength numbers are available on the phone. File selection, CLIP strength, trigger editing and application stages are configured on the computer. Existing accounts and backend pairing permissions are not changed by this extension. Shared-backend execution may require a compatible ComfyLink version; see the source repository's compatibility notes.
 
 ## Online and local prompt sources
 
@@ -108,9 +107,7 @@ Run `python -m unittest discover -s tests -v` and `node --test tests/test_i18n.m
 Newly exported mobile recipes keep each LoRA's enable switch and add an adjacent
 model-strength number (step 0.05, range -10 to 10). The initial value comes from
 the desktop recipe; CLIP strength remains the recipe value. Switching a LoRA off
-ignores its number. Exclusive groups retain their single-selection rule. Both
-FRAME Link and ComfyLink expose these ordinary FLOAT controls without a phone
-app update. Old recipe snapshots keep their original Boolean-only contract.
+ignores its number. Exclusive groups retain their single-selection rule. ComfyLink exposes these ordinary FLOAT controls without a phone app update. Old recipe snapshots keep their original Boolean-only contract.
 Save/export and sync a new recipe after replacing a LoRA file. The PNG receipt
 records the actual model and CLIP strengths used for enabled LoRAs.
 
@@ -126,10 +123,9 @@ and does not request new library prompts. Restore changed model files before
 replay; model signatures are checked, and a changed inference environment may
 still affect exact pixels. Keep the plans directory with your private backups.
 
-Both FRAME and ComfyLink use these controls. Use this workflow's batch count for
+Desktop ComfyUI and ComfyLink use these controls. Use this workflow's batch count for
 a frozen group; ComfyLink's independent app-level repetition submits separate
-plans. FRAME may supply a reviewed `prompt_batch` JSON list with source IDs and
-revisions. Plan files retain full prompts, so future catalog updates do not
+plans. Advanced callers may supply a `prompt_batch` JSON list with source IDs and revisions. Plan files retain full prompts, so future catalog updates do not
 change old tasks. Standard ComfyUI attempt IDs distinguish reruns of one plan.
 
 ### Select by permanent FRAME numbers
@@ -153,3 +149,7 @@ node (`批量抽词 · 数量与编号`). Its five scalar controls are required 
 so they appear as a normal workflow section instead of optional advanced inputs.
 The connected section owns selection values; legacy inline inputs remain supported
 for older workflows. Refresh the saved workflow list after upgrading the node pack.
+
+## Version 0.3.4
+
+Includes the dedicated batch-selection card, 1–10 prompts per run, random selection or a fixed list of permanent FRAME prompt numbers, frozen generation plans and replay codes. Preserves LoRA strength controls, automatic triggers, manual-prompt supplement behavior and automatic ComfyLink node-definition refresh. Existing private recipes and saved workflows are not rewritten by installation. Regenerate and sync a workflow to expose the new controls.

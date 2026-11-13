@@ -147,8 +147,8 @@ class WildcardTests(unittest.TestCase):
         options = {key: False for key in nodes.CONTROLS}
         with patch.object(selections, "resolve_frame_prompt", side_effect=self.draw) as draw, \
              patch.object(nodes.secrets, "randbits", side_effect=[123, 456]), patch.object(nodes, "build", return_value={}) as build:
-            cls().generate("Supplement", source=source, **options)
-            cls().generate("Supplement", source=source, **options)
+            cls()._generate_one("Supplement", source=source, **options)
+            cls()._generate_one("Supplement", source=source, **options)
         self.assertEqual(draw.call_count, 1)
         self.assertEqual([call.args[4] for call in build.call_args_list], [123, 456])
         self.assertEqual(build.call_args_list[0].args[2], build.call_args_list[1].args[2])

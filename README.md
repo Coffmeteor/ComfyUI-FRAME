@@ -113,3 +113,21 @@ FRAME Link and ComfyLink expose these ordinary FLOAT controls without a phone
 app update. Old recipe snapshots keep their original Boolean-only contract.
 Save/export and sync a new recipe after replacing a LoRA file. The PNG receipt
 records the actual model and CLIP strengths used for enabled LoRAs.
+
+## Frozen batches and replay
+
+`batch_count` prepares 1–10 images in a single workflow execution. All source
+prompts, seeds, expanded graphs and LoRA settings are resolved and saved under
+`ComfyUI/user/frame-nodes/plans` before any image nodes execute. Preparation
+failure submits no partial image batch. Each image filename and PNG receipt
+contains its `F…-01` item code; the parent `F…` code identifies the whole batch.
+Enter either in `replay_code` to reproduce it. Replay ignores current controls
+and does not request new library prompts. Restore changed model files before
+replay; model signatures are checked, and a changed inference environment may
+still affect exact pixels. Keep the plans directory with your private backups.
+
+Both FRAME and ComfyLink use these controls. Use this workflow's batch count for
+a frozen group; ComfyLink's independent app-level repetition submits separate
+plans. FRAME may supply a reviewed `prompt_batch` JSON list with source IDs and
+revisions. Plan files retain full prompts, so future catalog updates do not
+change old tasks. Standard ComfyUI attempt IDs distinguish reruns of one plan.

@@ -218,13 +218,26 @@ class FrameTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             render.build(recipe, ["0:0"], "A teapot", {}, 0, "test", strengths={"9:9": 1})
 
+    def test_real_batch_graph_freezes_prompts_and_model_signatures(self):
+        ident, recipe = config.save(self.recipe)
+        mapping, _, descriptor = nodes.recipe_classes(ident, recipe)
+        result = mapping[descriptor['main']]().generate('', batch_count=2,
+                    prompt_batch='["A red teapot", "A blue teapot"]', **{k:False for k in nodes.CONTROLS})
+        code = result['ui']['text'][0]
+        records = [json.loads(n['inputs']['receipt']) for n in result['expand'].values() if n['class_type']=='FrameSave']
+        self.assertEqual([r['text'] for r in records], ['A red teapot', 'A blue teapot'])
+        self.assertNotEqual(records[0]['seed'], records[1]['seed'])
+        self.assertEqual(nodes.plans.replay(code)['expand'], result['expand'])
+        self.files['diffusion_models']['model.safetensors'].write_bytes(b'changed')
+        with self.assertRaisesRegex(ValueError, 'model changed'): nodes.plans.replay(code)
+
     def test_mobile_strengths_flow_through_generate(self):
         self.recipe["mobile_strengths"] = True
         ident, recipe = config.save(self.recipe)
         mapping, _, d = nodes.recipe_classes(ident, recipe)
         selection = mapping[d["groups"][0]["type"]]().select(**{"My style": True, "My style · 强度": 0.6})[0]
         with patch.object(nodes, "build", return_value={}) as build:
-            mapping[d["main"]]().generate("A teapot", loras=selection, **{k:False for k in nodes.CONTROLS})
+            mapping[d["main"]]()._generate_one("A teapot", loras=selection, **{k:False for k in nodes.CONTROLS})
         self.assertEqual(build.call_args.kwargs["strengths"], {"0:0": 0.6})
 
 

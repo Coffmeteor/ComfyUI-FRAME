@@ -155,7 +155,7 @@ def resolve_frame_prompt(prompt: str, options: dict[str, Any], *,
                    "website": ORIGIN, "publication": published, "selection_date": today,
                    "scope_date": scope_date,
                    "catalog_total": total, "eligible_count": eligible, "index": index,
-                   "entry_id": row["id"], "added_at": row.get("added_at"), "seed": seed,
+                   "entry_id": row["id"], "entry_revision": record.get("revision", ""), "added_at": row.get("added_at"), "seed": seed,
                    "prompt_field": field, "selected_prompt": text.strip(), "supplement": supplement,
                    "expanded_prompt": expanded, "prompt_sha256": hashlib.sha256(expanded.encode()).hexdigest()}
         return expanded, receipt

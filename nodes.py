@@ -7,7 +7,7 @@ import secrets
 import json
 from pathlib import PurePosixPath
 
-from . import config
+from . import config, plans
 from .render import build, compose
 from .languages import caption, recipe_language, QUALITY
 
@@ -145,6 +145,13 @@ class FrameSave:
         import nodes
         metadata = dict(extra_pnginfo or {})
         metadata["frame"] = json.loads(receipt)
+        item_code = metadata["frame"].get("plan", {}).get("item_id")
+        if item_code and isinstance(prompt, dict):
+            prompt = copy.deepcopy(prompt)
+            matches = [node for node in prompt.values() if isinstance(node, dict) and
+                       node.get("class_type") == "FrameKrea2_" + metadata["frame"].get("recipe", "")]
+            if len(matches) == 1:
+                matches[0]["inputs"]["replay_code"] = item_code
         return nodes.SaveImage().save_images(images, filename_prefix, prompt, metadata)
 
 
@@ -160,14 +167,49 @@ class MobileGenerate:
     def INPUT_TYPES(cls):
         return {"required": {"text": ("STRING", {"default": "", "multiline": True}),
                              **{caption(en, zh, cls.LANGUAGE): BOOLEAN for en, zh in QUALITY}},
-                "optional": {"source": ("FRAME_SOURCE",), "loras": ("FRAME_SELECTION",)},
+                "optional": {"source": ("FRAME_SOURCE",), "loras": ("FRAME_SELECTION",),
+                             "batch_count": ("INT", {"default": 1, "min": 1, "max": 10}),
+                             "replay_code": ("STRING", {"default": "", "tooltip": "Replay a saved FRAME batch or item; other controls are ignored."}),
+                             "prompt_batch": ("STRING", {"default": "", "multiline": True, "tooltip": "Optional JSON prompt list prepared by FRAME."})},
                 "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"}}
 
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         return float("nan")
 
-    def generate(self, text, source=None, loras=None, extra_pnginfo=None, **options):
+    def generate(self, text, source=None, loras=None, extra_pnginfo=None, batch_count=1, replay_code="", prompt_batch="", **options):
+        if replay_code.strip():
+            return plans.replay(replay_code.strip())
+        if type(batch_count) is not int or not 1 <= batch_count <= 10:
+            raise ValueError("Choose 1–10 images per batch")
+        prompts = json.loads(prompt_batch) if prompt_batch.strip() else None
+        if prompts is not None:
+            if not isinstance(prompts, list) or len(prompts) != batch_count:
+                raise ValueError("Prepared prompts must contain one full prompt per batch item")
+            for entry in prompts:
+                value = entry.get("text") if isinstance(entry, dict) else entry
+                if not isinstance(value, str) or not value.strip() or len(value) > 16000:
+                    raise ValueError("Prepared prompts must contain full text up to 16,000 characters")
+                if isinstance(entry, dict) and (set(entry) - {"text", "id", "collection", "mode", "title", "thumbnail", "revision"} or
+                                               any(not isinstance(v, str) or len(v) > 16000 for v in entry.values())):
+                    raise ValueError("Invalid prepared prompt metadata")
+        graphs = []
+        for index in range(batch_count):
+            selected_source = {"原版": False, "改写版": False, "仅今日新增": False} if prompts is not None else source
+            entry = prompts[index] if prompts is not None else text
+            result = self._generate_one(entry["text"] if isinstance(entry, dict) else entry,
+                                        source=selected_source, loras=loras, extra_pnginfo=extra_pnginfo, **options)
+            if isinstance(entry, dict):
+                for node in result["expand"].values():
+                    if node["class_type"] == "FrameSave":
+                        receipt = json.loads(node["inputs"]["receipt"])
+                        receipt["source"] = {"source": "prepared", "entry_id": entry.get("id", ""),
+                                             **{k: v for k, v in entry.items() if k != "text"}}
+                        node["inputs"]["receipt"] = json.dumps(receipt, ensure_ascii=False)
+            graphs.append(result["expand"])
+        return plans.freeze(self.SNAPSHOT, graphs)
+
+    def _generate_one(self, text, source=None, loras=None, extra_pnginfo=None, **options):
         labels = {caption(en, zh, self.LANGUAGE): zh for en, zh in QUALITY}
         if set(options) != set(labels):
             raise ValueError("Invalid FRAME controls; sync the workflow for this recipe language")

@@ -61,9 +61,9 @@ class LanguageTests(unittest.TestCase):
             main = mapping[d['main']]
             options = {key: key == languages.caption('Square', '方图', language) for key in main.INPUT_TYPES()['required'] if key != 'text'}
             with patch.object(nodes, 'build', return_value={}) as build:
-                main().generate('A teapot', source=source, **options)
+                main()._generate_one('A teapot', source=source, **options)
                 normalized.append(build.call_args.args[3])
-            with self.assertRaises(ValueError): main().generate('A teapot', **{'wrong field': True})
+            with self.assertRaises(ValueError): main()._generate_one('A teapot', **{'wrong field': True})
         self.assertEqual(normalized[0], normalized[1])
         self.assertEqual(normalized[1], normalized[2])
         self.assertTrue(normalized[0]['方图'])

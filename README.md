@@ -113,3 +113,12 @@ FRAME Link and ComfyLink expose these ordinary FLOAT controls without a phone
 app update. Old recipe snapshots keep their original Boolean-only contract.
 Save/export and sync a new recipe after replacing a LoRA file. The PNG receipt
 records the actual model and CLIP strengths used for enabled LoRAs.
+
+Original-library phone draws now read the website's versioned public export,
+not the live catalog API. The published index is checked at most once per minute;
+the matching compressed catalog is retained locally under
+`user/frame-nodes/catalog-cache`. Each draw pins one publication, including its
+full-library or latest-update count, and records `published_snapshot` in the
+receipt. A cached catalog still works while the live API origin is unavailable.
+Rewrite draws continue to use the API. No private catalog, credentials, or
+unpublished collection rows enter this cache.

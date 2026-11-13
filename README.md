@@ -131,3 +131,18 @@ a frozen group; ComfyLink's independent app-level repetition submits separate
 plans. FRAME may supply a reviewed `prompt_batch` JSON list with source IDs and
 revisions. Plan files retain full prompts, so future catalog updates do not
 change old tasks. Standard ComfyUI attempt IDs distinguish reruns of one plan.
+
+### Select by permanent database IDs
+
+`catalog_selection` is separate from replay and image seeds:
+- **Random IDs each run** draws `batch_count` distinct IDs from the public API
+  at the start of every run.
+- **Fixed prompt IDs** resolves the comma/newline-separated `prompt_ids` in order
+  on every run. Its count must match `batch_count`. Missing IDs stop the batch;
+  they are never silently substituted.
+- **Workflow source** retains the existing source/manual controls.
+
+Choose `catalog` and `prompt_format` explicitly. These are the database's existing
+stable entry IDs, not F-prefixed generation-plan codes. Fixed selection follows
+current content revisions for those IDs. Use `replay_code` only when you also
+want the exact saved text, seeds and graph from an earlier image.

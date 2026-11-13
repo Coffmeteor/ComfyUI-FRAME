@@ -8,6 +8,7 @@ import json
 from pathlib import PurePosixPath
 
 from . import config, plans
+from . import catalog_selection as catalog_ids
 from .render import build, compose
 from .languages import caption, recipe_language, QUALITY
 
@@ -169,6 +170,10 @@ class MobileGenerate:
                              **{caption(en, zh, cls.LANGUAGE): BOOLEAN for en, zh in QUALITY}},
                 "optional": {"source": ("FRAME_SOURCE",), "loras": ("FRAME_SELECTION",),
                              "batch_count": ("INT", {"default": 1, "min": 1, "max": 10}),
+                             "catalog_selection": (list(catalog_ids.POLICIES), {"default": "Workflow source"}),
+                             "catalog": (["library", "rewrite"], {"default": "library"}),
+                             "prompt_format": (list(dict.fromkeys(v for values in catalog_ids.FORMATS.values() for v in values)), {"default": "prompt_krea2"}),
+                             "prompt_ids": ("STRING", {"default": "", "multiline": True, "tooltip": "Persistent database IDs; used only in Fixed prompt IDs mode."}),
                              "replay_code": ("STRING", {"default": "", "tooltip": "Replay a saved FRAME batch or item; other controls are ignored."}),
                              "prompt_batch": ("STRING", {"default": "", "multiline": True, "tooltip": "Optional JSON prompt list prepared by FRAME."})},
                 "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"}}
@@ -177,12 +182,15 @@ class MobileGenerate:
     def IS_CHANGED(cls, **kwargs):
         return float("nan")
 
-    def generate(self, text, source=None, loras=None, extra_pnginfo=None, batch_count=1, replay_code="", prompt_batch="", **options):
+    def generate(self, text, source=None, loras=None, extra_pnginfo=None, batch_count=1, replay_code="", prompt_batch="", catalog_selection="Workflow source", catalog="library", prompt_format="prompt_krea2", prompt_ids="", **options):
         if replay_code.strip():
             return plans.replay(replay_code.strip())
         if type(batch_count) is not int or not 1 <= batch_count <= 10:
             raise ValueError("Choose 1–10 images per batch")
-        prompts = json.loads(prompt_batch) if prompt_batch.strip() else None
+        if catalog_selection not in catalog_ids.POLICIES:
+            raise ValueError("Choose a valid prompt selection mode")
+        prompts = (catalog_ids.select(catalog, prompt_format, catalog_selection, batch_count, prompt_ids)
+                   if catalog_selection != "Workflow source" else json.loads(prompt_batch) if prompt_batch.strip() else None)
         if prompts is not None:
             if not isinstance(prompts, list) or len(prompts) != batch_count:
                 raise ValueError("Prepared prompts must contain one full prompt per batch item")

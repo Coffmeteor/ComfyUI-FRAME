@@ -1,7 +1,9 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const VERSION = "0.3.4";
+import { validateWorkflowInputs } from "./workflow_validation.js";
+
+const VERSION = "0.3.5";
 import { resolveLanguage, translate } from "./i18n.js";
 const LANGUAGE_KEY = "FRAME.editorLanguage";
 function preference() { try { return localStorage.getItem(LANGUAGE_KEY) || "auto"; } catch { return "auto"; } }
@@ -72,13 +74,7 @@ export async function buildMobileWorkflow(descriptor) {
   ui.extra = { ...(ui.extra || {}), comfylink: { name: descriptor.name },
                frame: { schema: 1, snapshot: descriptor.snapshot }, ds: {scale:0.65,offset:[70,100]} };
   const { output } = await app.graphToPrompt(graph);
-  for (const node of Object.values(output)) for (const [key, value] of Object.entries(node.inputs)) {
-    if (Array.isArray(value)) continue;
-    if (key === "text" && typeof value === "string") continue;
-    if (node.class_type === descriptor.source && (descriptor.source_fields || ["Prompt source","Selection mode"]).includes(key) && typeof value === "string") continue;
-    if (descriptor.mobile_strengths && descriptor.groups.some(g => g.type === node.class_type) && typeof value === "number" && Number.isFinite(value)) continue;
-    if (typeof value !== "boolean") throw new Error("Unexpected phone widget: " + key);
-  }
+  validateWorkflowInputs(output, descriptor);
   return { ui, output };
 }
 

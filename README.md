@@ -147,3 +147,9 @@ allocated once on admission and never reused or renumbered. The chosen catalog
 distinguishes Library #1 from Rewrite #1. Fixed selection follows
 current content revisions for those IDs. Use `replay_code` only when you also
 want the exact saved text, seeds and graph from an earlier image.
+
+ComfyLink displays selection in the dedicated **Batch prompts · Count & Numbers**
+node (`批量抽词 · 数量与编号`). Its five scalar controls are required widgets,
+so they appear as a normal workflow section instead of optional advanced inputs.
+The connected section owns selection values; legacy inline inputs remain supported
+for older workflows. Refresh the saved workflow list after upgrading the node pack.

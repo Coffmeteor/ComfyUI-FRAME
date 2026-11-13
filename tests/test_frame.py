@@ -231,6 +231,22 @@ class FrameTests(unittest.TestCase):
         self.files['diffusion_models']['model.safetensors'].write_bytes(b'changed')
         with self.assertRaisesRegex(ValueError, 'model changed'): nodes.plans.replay(code)
 
+    def test_batch_selection_is_a_required_widget_group_and_controls_execution(self):
+        ident, recipe = config.save(self.recipe)
+        mapping, _, descriptor = nodes.recipe_classes(ident, recipe)
+        batch = mapping[descriptor['batch']]
+        schema = batch.INPUT_TYPES()
+        fields = {'catalog_selection','batch_count','catalog','prompt_format','prompt_ids'}
+        self.assertEqual(set(schema['required']), fields)
+        values = {'catalog_selection':'Fixed prompt IDs','batch_count':2,'catalog':'library',
+                  'prompt_format':'prompt_krea2','prompt_ids':'2,1'}
+        selected = batch().select(**values)[0]
+        entries = [{'id':'2','text':'A blue teapot'},{'id':'1','text':'A red teapot'}]
+        with patch.object(nodes.catalog_ids,'select',return_value=entries) as choose:
+            result=mapping[descriptor['main']]().generate('',catalog_batch=selected,**{k:False for k in nodes.CONTROLS})
+        choose.assert_called_once_with('library','prompt_krea2','Fixed prompt IDs',2,'2,1')
+        self.assertEqual(sum(n['class_type']=='FrameSave' for n in result['expand'].values()),2)
+
     def test_mobile_strengths_flow_through_generate(self):
         self.recipe["mobile_strengths"] = True
         ident, recipe = config.save(self.recipe)

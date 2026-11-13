@@ -169,6 +169,7 @@ class MobileGenerate:
         return {"required": {"text": ("STRING", {"default": "", "multiline": True}),
                              **{caption(en, zh, cls.LANGUAGE): BOOLEAN for en, zh in QUALITY}},
                 "optional": {"source": ("FRAME_SOURCE",), "loras": ("FRAME_SELECTION",),
+                             "catalog_batch": ("FRAME_CATALOG_SELECTION",),
                              "batch_count": ("INT", {"default": 1, "min": 1, "max": 10}),
                              "catalog_selection": (list(catalog_ids.POLICIES), {"default": "Workflow source"}),
                              "catalog": (["library", "rewrite"], {"default": "library"}),
@@ -182,9 +183,17 @@ class MobileGenerate:
     def IS_CHANGED(cls, **kwargs):
         return float("nan")
 
-    def generate(self, text, source=None, loras=None, extra_pnginfo=None, batch_count=1, replay_code="", prompt_batch="", catalog_selection="Workflow source", catalog="library", prompt_format="prompt_krea2", prompt_ids="", **options):
+    def generate(self, text, source=None, loras=None, extra_pnginfo=None, batch_count=1, replay_code="", prompt_batch="", catalog_selection="Workflow source", catalog="library", prompt_format="prompt_krea2", prompt_ids="", catalog_batch=None, **options):
         if replay_code.strip():
             return plans.replay(replay_code.strip())
+        if catalog_batch is not None:
+            if not isinstance(catalog_batch, dict) or catalog_batch.get("snapshot") != self.SNAPSHOT:
+                raise ValueError("Batch selection belongs to a different workflow recipe")
+            batch_count = catalog_batch["batch_count"]
+            catalog_selection = catalog_batch["catalog_selection"]
+            catalog = catalog_batch["catalog"]
+            prompt_format = catalog_batch["prompt_format"]
+            prompt_ids = catalog_batch["prompt_ids"]
         if type(batch_count) is not int or not 1 <= batch_count <= 10:
             raise ValueError("Choose 1–10 images per batch")
         if catalog_selection not in catalog_ids.POLICIES:
@@ -261,6 +270,36 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
     main = "FrameKrea2_" + ident
     mappings = {main: type(main, (MobileGenerate,), {"SNAPSHOT": ident, "LANGUAGE": language})}
     names = {main: main_title}
+    batch_type = "FrameCatalog_" + ident
+    batch_title = caption("Batch prompts · Count & Numbers", "批量抽词 · 数量与编号", language)
+    batch_fields = ("catalog_selection", "batch_count", "catalog", "prompt_format", "prompt_ids")
+    batch_labels = {
+        "catalog_selection": caption("Selection mode", "选择方式", language),
+        "batch_count": caption("Prompt count (1–10)", "提示词数量（1–10）", language),
+        "catalog": caption("Library", "词库", language),
+        "prompt_format": caption("Prompt format", "提示词版本", language),
+        "prompt_ids": caption("Fixed numbers, e.g. 1, 2, 3", "固定编号，例如 1, 2, 3", language),
+    }
+
+    def batch_schema(cls):
+        optional = MobileGenerate.INPUT_TYPES()["optional"]
+        fields = {key: copy.deepcopy(optional[key]) for key in batch_fields}
+        for key, spec in fields.items():
+            spec[1]["display_name"] = batch_labels[key]
+        return {"required": fields}
+
+    def select_batch(self, **values):
+        if set(values) != set(batch_fields):
+            raise ValueError("Invalid batch selection controls; sync the workflow")
+        if (type(values["batch_count"]) is not int or not 1 <= values["batch_count"] <= 10 or
+                values["catalog_selection"] not in catalog_ids.POLICIES or values["catalog"] not in catalog_ids.FORMATS or
+                not isinstance(values["prompt_ids"], str) or len(values["prompt_ids"]) > 16000):
+            raise ValueError("Invalid batch selection")
+        return ({"snapshot": ident, **values},)
+
+    mappings[batch_type] = type(batch_type, (), {"CATEGORY": "FRAME/Mobile", "RETURN_TYPES": ("FRAME_CATALOG_SELECTION",),
+                    "FUNCTION": "select", "INPUT_TYPES": classmethod(batch_schema), "select": select_batch})
+    names[batch_type] = batch_title
     source_type = "FrameSources_" + ident
     source_choices = choices(recipe)
     mode_choices = modes(recipe)
@@ -337,6 +376,7 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
         groups.append({"type": kind, "title": group["name"], "labels": list(controls)})
     return mappings, names, {"snapshot": ident, "name": recipe["name"], "main": main, "main_title": main_title,
                             "source": source_type, "source_title": source_label,
+                            "batch": batch_type, "batch_title": batch_title,
                             "source_fields": [source_label, mode_label], "language": language, "groups": groups,
                             "mobile_strengths": bool(recipe.get("mobile_strengths"))}
 

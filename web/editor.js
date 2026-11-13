@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const VERSION = "0.2.5";
+const VERSION = "0.3.3";
 import { resolveLanguage, translate } from "./i18n.js";
 const LANGUAGE_KEY = "FRAME.editorLanguage";
 function preference() { try { return localStorage.getItem(LANGUAGE_KEY) || "auto"; } catch { return "auto"; } }
@@ -37,7 +37,7 @@ async function request(path, options = {}) {
 export async function buildMobileWorkflow(descriptor) {
   // Native constructors and serialization own graph structure and widget order.
   const sourceType = descriptor.source || "FrameSource";
-  const types = [sourceType, descriptor.main, ...descriptor.groups.map(g => g.type)];
+  const types = [sourceType, descriptor.main, ...(descriptor.batch ? [descriptor.batch] : []), ...descriptor.groups.map(g => g.type)];
   const defs = {};
   for (const type of types) if (!LiteGraph.registered_node_types[type]) Object.assign(defs, await request("/object_info/" + encodeURIComponent(type)));
   if (Object.keys(defs).length) await app.registerNodesFromDefs(defs);
@@ -53,6 +53,10 @@ export async function buildMobileWorkflow(descriptor) {
   const source = add(sourceType, descriptor.source_title || "Prompt source", 50, 50);
   const main = add(descriptor.main, descriptor.main_title || "Prompt & Quality", 50, 270);
   source.connect(0, main, main.findInputSlot("source"));
+  if (descriptor.batch) {
+    const batch = add(descriptor.batch, descriptor.batch_title, -410, 50);
+    batch.connect(0, main, main.findInputSlot("catalog_batch"));
+  }
   let previous = null;
   let groupY = 50, rowHeight = 0;
   descriptor.groups.forEach((group, index) => {

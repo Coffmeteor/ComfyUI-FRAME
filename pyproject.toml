@@ -1,6 +1,6 @@
 [project]
 name = "frame-nodes"
-version = "0.3.1"
+version = "0.3.2"
 description = "Desktop LoRA recipes, automatic triggers, FRAME prompt libraries and switch-only phone workflows"
 authors = [{name = "Coffmeteor"}]
 license = {file = "LICENSE"}

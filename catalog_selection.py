@@ -11,8 +11,8 @@ FORMATS = {'library': ('prompt_krea2', 'prompt_flux', 'prompt_midjourney', 'tags
 
 def parse_ids(value):
     ids = [v for v in re.split(r'[\s,]+', value.strip()) if v]
-    if not 1 <= len(ids) <= 10 or len(set(ids)) != len(ids) or any(not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', v) for v in ids):
-        raise ValueError('Enter 1–10 distinct database prompt IDs, separated by commas or newlines')
+    if not 1 <= len(ids) <= 10 or len(set(ids)) != len(ids) or any(not re.fullmatch(r'[1-9][0-9]{0,14}', v) for v in ids):
+        raise ValueError('Enter 1–10 distinct FRAME prompt numbers, starting at 1, separated by commas or newlines')
     return ids
 
 
@@ -30,20 +30,20 @@ def select(collection, mode, policy, count, ids_text='', *, fetch=None):
         page = fetch(collection+'/query?'+urlencode({'sort':'shuffle','seed':secrets.randbits(32),'page':1,'limit':24}))
         if publication(page) != before:
             raise ValueError('Catalog changed during selection; retry before starting generation')
-        ids = [row['id'] for row in page.get('items', [])
-               if isinstance(row, dict) and (row.get(mode) or row.get('prompt_previews', {}).get(mode))][:count]
+        ids = [str(row['prompt_number']) for row in page.get('items', [])
+               if isinstance(row, dict) and type(row.get('prompt_number')) is int and row['prompt_number']>0 and (row.get(mode) or row.get('prompt_previews', {}).get(mode))][:count]
         if len(ids) != count:
             raise ValueError('Not enough prompts for this format; choose fewer prompts or another format')
         ids = parse_ids(','.join(ids))
     else:
         ids = fixed
-    records = fetch(collection+'/items?'+urlencode({'ids':','.join(ids)})).get('items', [])
-    by_id = {row['id']:row for row in records if isinstance(row, dict) and isinstance(row.get('id'),str)}
+    records = fetch(collection+'/items?'+urlencode({'numbers':','.join(ids)})).get('items', [])
+    by_id = {str(row['prompt_number']):row for row in records if isinstance(row, dict) and type(row.get('prompt_number')) is int}
     selected = []
     for ident in ids:
         row = by_id.get(ident)
         if row is None:
-            raise ValueError('Database prompt ID is unavailable: '+ident+'; no substitute was drawn')
+            raise ValueError('FRAME prompt number is unavailable: '+ident+'; no substitute was drawn')
         text = row.get(mode)
         if not isinstance(text,str) or not text.strip() or len(text)>16000:
             raise ValueError('The selected prompt ID has no usable text for this format: '+ident)

@@ -173,7 +173,7 @@ class MobileGenerate:
                              "catalog_selection": (list(catalog_ids.POLICIES), {"default": "Workflow source"}),
                              "catalog": (["library", "rewrite"], {"default": "library"}),
                              "prompt_format": (list(dict.fromkeys(v for values in catalog_ids.FORMATS.values() for v in values)), {"default": "prompt_krea2"}),
-                             "prompt_ids": ("STRING", {"default": "", "multiline": True, "tooltip": "Persistent database IDs; used only in Fixed prompt IDs mode."}),
+                             "prompt_ids": ("STRING", {"default": "", "multiline": True, "display_name": "Prompt numbers", "tooltip": "FRAME numbers starting at 1, for example 1, 2, 3. Used only in Fixed prompt IDs mode."}),
                              "replay_code": ("STRING", {"default": "", "tooltip": "Replay a saved FRAME batch or item; other controls are ignored."}),
                              "prompt_batch": ("STRING", {"default": "", "multiline": True, "tooltip": "Optional JSON prompt list prepared by FRAME."})},
                 "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"}}

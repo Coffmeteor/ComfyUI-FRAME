@@ -132,17 +132,18 @@ plans. FRAME may supply a reviewed `prompt_batch` JSON list with source IDs and
 revisions. Plan files retain full prompts, so future catalog updates do not
 change old tasks. Standard ComfyUI attempt IDs distinguish reruns of one plan.
 
-### Select by permanent database IDs
+### Select by permanent FRAME numbers
 
 `catalog_selection` is separate from replay and image seeds:
-- **Random IDs each run** draws `batch_count` distinct IDs from the public API
+- **Random IDs each run** draws `batch_count` distinct numbers from the public API
   at the start of every run.
-- **Fixed prompt IDs** resolves the comma/newline-separated `prompt_ids` in order
+- **Fixed prompt IDs** resolves the comma/newline-separated numbers in `prompt_ids` in order
   on every run. Its count must match `batch_count`. Missing IDs stop the batch;
   they are never silently substituted.
 - **Workflow source** retains the existing source/manual controls.
 
-Choose `catalog` and `prompt_format` explicitly. These are the database's existing
-stable entry IDs, not F-prefixed generation-plan codes. Fixed selection follows
+Choose `catalog` and `prompt_format` explicitly. Library and Rewrite each number entries from 1. These FRAME-owned numbers are
+allocated once on admission and never reused or renumbered. The chosen catalog
+distinguishes Library #1 from Rewrite #1. Fixed selection follows
 current content revisions for those IDs. Use `replay_code` only when you also
 want the exact saved text, seeds and graph from an earlier image.

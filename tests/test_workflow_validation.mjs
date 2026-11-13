@@ -16,3 +16,9 @@ test('export still rejects invalid counts and unexpected scalar controls',()=>{
  assert.throws(()=>validateWorkflowInputs({1:{class_type:'Generate',inputs:{unknown_number:2}}},descriptor));
  assert.throws(()=>validateWorkflowInputs({1:{class_type:'Batch',inputs:{catalog:'unknown'}}},descriptor));
 });
+
+test('localized compact controls validate without exposing legacy names', () => {
+  const descriptor = { main:'Main', batch:'Batch', source:'Source', groups:[], text_field:'提示词', replay_field:'重放编号', batch_field_names:{batch_count:'数量',catalog_selection:'选择方式',catalog:'词库',prompt_format:'版本',prompt_ids:'编号'}, batch_option_names:{catalog_selection:{'Fixed prompt IDs':'固定编号'},catalog:{library:'原版词库'},prompt_format:{prompt_krea2:'Krea 2'}} };
+  validateWorkflowInputs({1:{class_type:'Main',inputs:{'提示词':'','重放编号':''}},2:{class_type:'Batch',inputs:{'数量':2,'选择方式':'固定编号','词库':'原版词库','版本':'Krea 2','编号':'1,2'}}},descriptor);
+  assert.throws(()=>validateWorkflowInputs({2:{class_type:'Batch',inputs:{'数量':11}}},descriptor));
+});

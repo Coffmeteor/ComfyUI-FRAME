@@ -4,7 +4,7 @@ Choose your models and LoRAs once on the computer, then generate a compact workf
 
 ## Install, then open the generator
 
-1. In **ComfyUI Manager**, search for **FRAME Nodes** (`frame-nodes`) and install **0.3.5**. Restart ComfyUI and refresh the browser.
+1. Download the current **FRAME-Nodes-0.3.5.zip** from the Civitai resource. Extract its **ComfyUI-FRAME** folder into **ComfyUI/custom_nodes/**. If FRAME Nodes is already installed (including as `frame-nodes` by Manager), replace the contents of that existing folder instead of adding a second copy. Restart ComfyUI and refresh the browser. The visible version stays 0.3.5; an older Registry archive does not necessarily contain the current repair.
 2. Open the **ComfyUI menu at the top left → FRAME → Recipe Setup**. That opens the generator; you do not need to load a workflow first.
 3. Alternatively, open the included **workflows/FRAME Krea2 - Start Here.json** and click **Configure models & LoRAs**. This starter is a shortcut to the same generator.
 
@@ -24,6 +24,8 @@ Source: https://github.com/Coffmeteor/ComfyUI-FRAME
 7. In the generated workflow, choose your prompt source, enable the LoRAs you want, adjust their strengths and quality options, and click **Run**.
 
 Requires ComfyUI 0.43.0 or newer and your own compatible models. The generated workflow refers to a recipe saved on this computer. Other users should install the generator and configure their own files; do not send them your machine-specific recipe as a universal workflow.
+
+Newly saved recipes have one batch-selection card. Its field names and menu choices follow the exported workflow language. The main card contains prompt, quality and replay controls; legacy batch and internal prepared-JSON fields are not exposed. Older recipe snapshots retain their original interface.
 
 ## Language options
 

@@ -152,7 +152,9 @@ class FrameSave:
             matches = [node for node in prompt.values() if isinstance(node, dict) and
                        node.get("class_type") == "FrameKrea2_" + metadata["frame"].get("recipe", "")]
             if len(matches) == 1:
-                matches[0]["inputs"]["replay_code"] = item_code
+                recipe = config.load(metadata["frame"]["recipe"])
+                replay_field = caption("Replay code", "重放编号", recipe_language(recipe)) if recipe.get("mobile_controls") == 2 else "replay_code"
+                matches[0]["inputs"][replay_field] = item_code
         return nodes.SaveImage().save_images(images, filename_prefix, prompt, metadata)
 
 
@@ -267,6 +269,7 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
     append_label = caption("Append manual text", "追加手动提示词", language)
     explicit = recipe.get("prompt_policy", "legacy") == "explicit"
     main_title = caption("Prompt & Quality", "提示词与画质", language)
+    compact = recipe.get("mobile_controls") == 2
     main = "FrameKrea2_" + ident
     mappings = {main: type(main, (MobileGenerate,), {"SNAPSHOT": ident, "LANGUAGE": language})}
     names = {main: main_title}
@@ -281,14 +284,55 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
         "prompt_ids": caption("Fixed numbers, e.g. 1, 2, 3", "固定编号，例如 1, 2, 3", language),
     }
 
+    field_names = {key: batch_labels[key] if compact else key for key in batch_fields}
+    option_names = {
+        "catalog_selection": dict(zip(catalog_ids.POLICIES, [caption("Follow prompt source", "跟随提示词来源", language), caption("Random numbers each run", "每次随机抽取", language), caption("Fixed prompt numbers", "固定提示词编号", language)])),
+        "catalog": {"library": caption("Original library", "原版词库", language), "rewrite": caption("Rewrite library", "改写词库", language)},
+        "prompt_format": dict(zip(["prompt_krea2", "prompt_flux", "prompt_midjourney", "tags_sdxl", "prompt_krea2_style_ref", "prompt", "clean_prompt", "subject_prompt"],
+            ["Krea 2", "FLUX", "Midjourney", "SDXL", caption("Krea 2 style reference", "Krea 2 风格参考", language), caption("Rewrite", "改写版", language), caption("Clean rewrite", "纯净改写版", language), caption("Subject rewrite", "主体改写版", language)])),
+    }
+    text_field = caption("Prompt", "提示词", language) if compact else "text"
+    replay_field = caption("Replay code", "重放编号", language) if compact else "replay_code"
+    if compact:
+        def compact_schema(cls):
+            schema = MobileGenerate.INPUT_TYPES.__func__(cls)
+            schema["required"] = {text_field: schema["required"].pop("text"), **schema["required"]}
+            schema["optional"] = {key: schema["optional"][key] for key in ("source", "loras", "catalog_batch")}
+            schema["optional"][replay_field] = ("STRING", {"default": "", "tooltip": caption("Leave empty for normal generation. Enter a saved batch or item code to replay it.", "正常生成时留空。填写已保存的批次或单项编号可重放。", language)})
+            return schema
+        def compact_generate(self, **values):
+            text = values.pop(text_field, "")
+            replay = values.pop(replay_field, "")
+            return MobileGenerate.generate(self, text=text, replay_code=replay, **values)
+        mappings[main] = type(main, (MobileGenerate,), {"SNAPSHOT": ident, "LANGUAGE": language,
+            "INPUT_TYPES": classmethod(compact_schema), "generate": compact_generate})
+
     def batch_schema(cls):
         optional = MobileGenerate.INPUT_TYPES()["optional"]
-        fields = {key: copy.deepcopy(optional[key]) for key in batch_fields}
-        for key, spec in fields.items():
+        fields = {}
+        for key in batch_fields:
+            spec = copy.deepcopy(optional[key])
             spec[1]["display_name"] = batch_labels[key]
+            if compact:
+                spec[1].pop("tooltip", None)
+                if key in option_names:
+                    options = list(option_names[key].values())
+                    spec = (options, {"default": option_names[key][spec[1]["default"]], "options": options})
+                if key == "prompt_ids":
+                    spec[1]["tooltip"] = caption("Used only with fixed numbers. Enter one number per prompt, separated by commas or newlines.", "仅固定编号模式使用，多个编号用逗号或换行分隔，数量须与提示词数量一致。", language)
+            fields[field_names[key]] = spec
         return {"required": fields}
 
     def select_batch(self, **values):
+        if compact:
+            if set(values) != set(field_names.values()):
+                raise ValueError("Invalid batch selection controls; sync the workflow")
+            values = {key: values[label] for key, label in field_names.items()}
+            for key, options in option_names.items():
+                reverse = {label: value for value, label in options.items()}
+                if values[key] not in reverse:
+                    raise ValueError("Invalid batch selection")
+                values[key] = reverse[values[key]]
         if set(values) != set(batch_fields):
             raise ValueError("Invalid batch selection controls; sync the workflow")
         if (type(values["batch_count"]) is not int or not 1 <= values["batch_count"] <= 10 or
@@ -377,6 +421,8 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
     return mappings, names, {"snapshot": ident, "name": recipe["name"], "main": main, "main_title": main_title,
                             "source": source_type, "source_title": source_label,
                             "batch": batch_type, "batch_title": batch_title,
+                            "batch_field_names": field_names if compact else {}, "batch_option_names": option_names if compact else {},
+                            "text_field": text_field, "replay_field": replay_field,
                             "source_fields": [source_label, mode_label], "language": language, "groups": groups,
                             "mobile_strengths": bool(recipe.get("mobile_strengths"))}
 

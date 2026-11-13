@@ -1,3 +1,5 @@
+当前修正版仍为 **0.3.5**。请下载 Civitai 最新 ZIP；已安装时替换原 FRAME 节点目录的内容，不要同时保留两份。重启并重新保存配方、同步工作流后，批量控制只保留一组，字段名及菜单跟随导出语言。旧 Registry 归档不一定包含本次修复。
+
 # FRAME Nodes — ComfyUI / ComfyLink 工作流生成器
 
 在电脑配置模型、LoRA 和提示词来源，生成简洁的操作工作流。可以直接在 ComfyUI 出图，也可以通过 ComfyLink 手机操作。不需要我们的 FRAME 应用或 FRAME Link 连接插件。

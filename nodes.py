@@ -299,10 +299,29 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
             schema["required"] = {text_field: schema["required"].pop("text"), **schema["required"]}
             schema["optional"] = {key: schema["optional"][key] for key in ("source", "loras", "catalog_batch")}
             schema["optional"][replay_field] = ("STRING", {"default": "", "tooltip": caption("Leave empty for normal generation. Enter a saved batch or item code to replay it.", "正常生成时留空。填写已保存的批次或单项编号可重放。", language)})
+            schema["hidden"].update(prompt="PROMPT", unique_id="UNIQUE_ID")
             return schema
         def compact_generate(self, **values):
             text = values.pop(text_field, "")
             replay = values.pop(replay_field, "")
+            # Existing API clients and ComfyLink replay receipts may still send
+            # canonical inputs. Accept them server-side without exposing widgets.
+            prompt, unique_id = values.pop("prompt", None), values.pop("unique_id", None)
+            raw = prompt.get(str(unique_id), {}).get("inputs", {}) if isinstance(prompt, dict) else {}
+            if "text" in raw:
+                text = raw["text"]
+            if "replay_code" in raw:
+                replay = raw["replay_code"]
+            if not isinstance(text, str) or not isinstance(replay, str):
+                raise ValueError("Prompt and replay code must be text")
+            for key in (*batch_fields, "prompt_batch"):
+                if key in raw:
+                    values[key] = raw[key]
+            if "prompt_batch" in raw:
+                if not isinstance(raw["prompt_batch"], str):
+                    raise ValueError("Prepared prompt batch must be JSON text")
+                if raw["prompt_batch"].strip():
+                    values["catalog_batch"] = None
             return MobileGenerate.generate(self, text=text, replay_code=replay, **values)
         mappings[main] = type(main, (MobileGenerate,), {"SNAPSHOT": ident, "LANGUAGE": language,
             "INPUT_TYPES": classmethod(compact_schema), "generate": compact_generate})

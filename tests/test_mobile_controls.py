@@ -38,3 +38,17 @@ class MobileControlsTests(unittest.TestCase):
         new_id,_=config.save(self.recipe)
         self.assertNotEqual(ident,new_id)
         self.assertNotIn('mobile_controls',config.load(ident))
+
+    def test_legacy_api_inputs_remain_accepted_without_visible_widgets(self):
+        self.recipe['mobile_controls']=2
+        ident,recipe=config.save(self.recipe)
+        classes,_,d=nodes.recipe_classes(ident,recipe)
+        cls=classes[d['main']]
+        self.assertEqual(cls.INPUT_TYPES()['hidden']['prompt'],'PROMPT')
+        raw={'7':{'inputs':{'text':'legacy text','replay_code':'saved-code','prompt_batch':'["one","two"]','batch_count':2}}}
+        with patch.object(nodes.MobileGenerate,'generate',return_value={}) as generate:
+            cls().generate(**{d['text_field']:'',d['replay_field']:'', 'prompt':raw,'unique_id':'7','catalog_batch':{'batch_count':1}})
+            self.assertEqual(generate.call_args.kwargs['text'],'legacy text')
+            self.assertEqual(generate.call_args.kwargs['replay_code'],'saved-code')
+            self.assertEqual(generate.call_args.kwargs['batch_count'],2)
+            self.assertIsNone(generate.call_args.kwargs['catalog_batch'])

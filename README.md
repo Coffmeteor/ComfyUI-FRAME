@@ -102,3 +102,14 @@ Chinese documentation: [README.zh-CN.md](README.zh-CN.md)
 ## Development
 
 Run `python -m unittest discover -s tests -v` and `node --test tests/test_i18n.mjs`. Registry publication uses `pyproject.toml`; runtime state, model weights, caches, tests and CI are excluded from the Registry archive. See [VALIDATION.md](VALIDATION.md) for acceptance boundaries.
+
+### Phone LoRA strengths
+
+Newly exported mobile recipes keep each LoRA's enable switch and add an adjacent
+model-strength number (step 0.05, range -10 to 10). The initial value comes from
+the desktop recipe; CLIP strength remains the recipe value. Switching a LoRA off
+ignores its number. Exclusive groups retain their single-selection rule. Both
+FRAME Link and ComfyLink expose these ordinary FLOAT controls without a phone
+app update. Old recipe snapshots keep their original Boolean-only contract.
+Save/export and sync a new recipe after replacing a LoRA file. The PNG receipt
+records the actual model and CLIP strengths used for enabled LoRAs.

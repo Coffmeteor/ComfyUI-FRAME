@@ -176,8 +176,8 @@ class MobileGenerate:
             raise ValueError("Invalid FRAME phone controls")
         recipe = config.load(self.SNAPSHOT)
         source = source or {"原版": False, "改写版": False, "仅今日新增": False}
-        selection = loras or {"snapshot": self.SNAPSHOT, "ids": []}
-        if not isinstance(selection, dict) or selection.get("snapshot") != self.SNAPSHOT or set(selection) != {"snapshot", "ids"}:
+        selection = loras or {"snapshot": self.SNAPSHOT, "ids": [], **({"strengths": {}} if recipe.get("mobile_strengths") else {})}
+        if not isinstance(selection, dict) or selection.get("snapshot") != self.SNAPSHOT or set(selection) != ({"snapshot", "ids", "strengths"} if recipe.get("mobile_strengths") else {"snapshot", "ids"}):
             raise ValueError("LoRA groups belong to a different recipe; regenerate the phone workflow")
         seed = 0 if options["固定随机种子"] else secrets.randbits(63)
         receipt = None
@@ -197,7 +197,7 @@ class MobileGenerate:
         prefix = (extra_pnginfo or {}).get("frame_output_prefix", "FRAME/" + self.SNAPSHOT)
         if not isinstance(prefix, str) or not prefix or PurePosixPath(prefix).is_absolute() or ".." in PurePosixPath(prefix).parts or "\\" in prefix or ":" in prefix:
             raise ValueError("Invalid output prefix")
-        return build(recipe, selection["ids"], text, options, seed, prefix, receipt)
+        return build(recipe, selection["ids"], text, options, seed, prefix, receipt, strengths=selection.get("strengths"))
 
 
 def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
@@ -247,20 +247,39 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
     groups = []
     for gi, group in enumerate(recipe["groups"]):
         kind = f"FrameLoRAs_{ident}_{gi}"
-        controls = {e["name"]: BOOLEAN for e in group["entries"]}
+        controls = {}
+        strength_fields = {}
+        for ei, entry in enumerate(group["entries"]):
+            controls[entry["name"]] = BOOLEAN
+            if recipe.get("mobile_strengths"):
+                field = entry["name"] + caption(" · Strength", " · 强度", language)
+                if field in {e["name"] for e in group["entries"]}:
+                    raise ValueError("LoRA name conflicts with a strength control")
+                strength_fields[field] = (f"{gi}:{ei}", entry["strength_model"])
+                controls[field] = ("FLOAT", {"default": entry["strength_model"], "min": -10, "max": 10, "step": 0.05})
 
         def schema(cls, controls=controls):
             return {"required": copy.deepcopy(controls), "optional": {"previous": ("FRAME_SELECTION",)}}
 
-        def select(self, previous=None, _gi=gi, _group=group, **switches):
-            if set(switches) != {e["name"] for e in _group["entries"]} or any(type(v) is not bool for v in switches.values()):
-                raise ValueError("Invalid LoRA switches; resync this workflow")
-            picked = [f"{_gi}:{i}" for i, e in enumerate(_group["entries"]) if switches[e["name"]]]
+        def select(self, previous=None, _gi=gi, _group=group, _strength_fields=strength_fields, **values):
+            labels = {e["name"] for e in _group["entries"]}
+            if set(values) != labels | set(_strength_fields) or any(type(values[k]) is not bool for k in labels):
+                raise ValueError("Invalid LoRA controls; resync this workflow")
+            picked = [f"{_gi}:{i}" for i, e in enumerate(_group["entries"]) if values[e["name"]]]
             if _group["exclusive"] and len(picked) > 1:
                 raise ValueError(f"Allow only one active LoRA in {_group['name']}")
-            if previous is not None and (not isinstance(previous, dict) or previous.get("snapshot") != ident or set(previous) != {"snapshot", "ids"}):
+            expected = {"snapshot", "ids", "strengths"} if recipe.get("mobile_strengths") else {"snapshot", "ids"}
+            if previous is not None and (not isinstance(previous, dict) or previous.get("snapshot") != ident or set(previous) != expected):
                 raise ValueError("LoRA groups belong to a different recipe")
-            return ({"snapshot": ident, "ids": (previous["ids"] if previous else []) + picked},)
+            result = {"snapshot": ident, "ids": (previous["ids"] if previous else []) + picked}
+            if recipe.get("mobile_strengths"):
+                strengths = dict(previous["strengths"] if previous else {})
+                for field, (key, _) in _strength_fields.items():
+                    value = float(config.number(values[field], field, -10, 10))
+                    if key in picked:
+                        strengths[key] = value
+                result["strengths"] = strengths
+            return (result,)
 
         mappings[kind] = type(kind, (), {"CATEGORY": "FRAME/Mobile", "RETURN_TYPES": ("FRAME_SELECTION",),
                     "FUNCTION": "select", "INPUT_TYPES": classmethod(schema), "select": select})
@@ -268,7 +287,8 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
         groups.append({"type": kind, "title": group["name"], "labels": list(controls)})
     return mappings, names, {"snapshot": ident, "name": recipe["name"], "main": main, "main_title": main_title,
                             "source": source_type, "source_title": source_label,
-                            "source_fields": [source_label, mode_label], "language": language, "groups": groups}
+                            "source_fields": [source_label, mode_label], "language": language, "groups": groups,
+                            "mobile_strengths": bool(recipe.get("mobile_strengths"))}
 
 
 NODE_CLASS_MAPPINGS = {"FrameSource": FrameSource, "FramePrompt": FramePrompt, "FrameLora": FrameLora,

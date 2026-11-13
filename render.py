@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 import json
 
-from .config import resolve, snapshot_id
+from .config import resolve, snapshot_id, number
 
 
 def compose(text: str, triggers: list[str]) -> str:
@@ -20,7 +20,7 @@ def canvas(landscape=False, square=False, wallpaper=False, small=False):
     return round(math.sqrt(pixels * ratio) / 32) * 32, round(math.sqrt(pixels / ratio) / 32) * 32
 
 
-def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int, prefix: str, receipt=None):
+def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int, prefix: str, receipt=None, *, strengths=None):
     from comfy_execution.graph_utils import GraphBuilder
     import nodes
     g = GraphBuilder()
@@ -45,7 +45,12 @@ def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int
             entries[f"{gi}:{ei}"] = entry
     if not isinstance(selected, list) or len(set(selected)) != len(selected) or set(selected) - entries.keys():
         raise ValueError("LoRA selection does not belong to this recipe")
-    active = [entries[key] for key in selected]
+    strengths = {} if strengths is None else strengths
+    if not isinstance(strengths, dict) or set(strengths) - set(selected):
+        raise ValueError("Strength controls must belong to selected LoRAs")
+    if strengths and not recipe.get("mobile_strengths"):
+        raise ValueError("This recipe has no mobile strength controls")
+    active = [{**entries[key], "strength_model": float(number(strengths.get(key, entries[key]["strength_model"]), "LoRA strength", -10, 10))} for key in selected]
     for entry in active:
         path = resolve("loras", entry["file"])
         st = path.stat()
@@ -133,7 +138,7 @@ def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int
     record = {"schema_version": 1, "recipe": snapshot_id(recipe), "seed": seed, "text": text, "selection": selected,
               "prompts": {stage_name: compose(text, [e["trigger"] for e in active if stage_name in e["stages"]])
                           for stage_name in ("base", "upscale", "detailer")},
-              "loras": [{"name": e["name"], "trigger": e["trigger"], "stages": e["stages"]} for e in active],
+              "loras": [{"name": e["name"], "trigger": e["trigger"], "stages": e["stages"], "file": e["file"], "strength_model": e["strength_model"], "strength_clip": e["strength_clip"]} for e in active],
               "source": receipt}
     g.node("FrameSave", images=image, filename_prefix=prefix, receipt=json.dumps(record, ensure_ascii=False))
     return {"result": (), "expand": g.finalize()}

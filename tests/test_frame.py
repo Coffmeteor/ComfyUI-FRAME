@@ -184,5 +184,48 @@ class FrameTests(unittest.TestCase):
         self.assertIn(new['main'],host_nodes.NODE_CLASS_MAPPINGS)
         self.assertNotEqual(old['main'],new['main'])
 
+    def test_mobile_strengths_reach_native_loader_and_receipt_without_mutation(self):
+        self.recipe["mobile_strengths"] = True
+        ident, recipe = config.save(self.recipe)
+        mapping, _, descriptor = nodes.recipe_classes(ident, recipe)
+        group = mapping[descriptor["groups"][0]["type"]]
+        self.assertEqual(group.INPUT_TYPES()["required"]["My style · 强度"][0], "FLOAT")
+        selected = group().select(**{"My style": True, "My style · 强度": 0.35})[0]
+        graph = render.build(recipe, selected["ids"], "A teapot", {}, 0, "test", strengths=selected["strengths"])["expand"]
+        loader = next(n for n in graph.values() if n["class_type"] == "LoraLoaderModelOnly")
+        self.assertEqual(loader["inputs"]["strength_model"], 0.35)
+        receipt = json.loads(next(n["inputs"]["receipt"] for n in graph.values() if n["class_type"] == "FrameSave"))
+        self.assertEqual(receipt["loras"][0]["strength_model"], 0.35)
+        self.assertEqual(config.load(ident), recipe)
+        self.assertEqual(recipe["groups"][0]["entries"][0]["strength_model"], 1.0)
+        off = group().select(**{"My style": False, "My style · 强度": 2.0})[0]
+        self.assertEqual(off["ids"], [])
+        self.assertEqual(off["strengths"], {})
+
+    def test_mobile_strength_chain_and_invalid_values(self):
+        self.recipe["mobile_strengths"] = True
+        self.recipe["groups"].append({"name": "Second group", "exclusive": True, "entries": [{"name": "Second", "file": "style.safetensors"}]})
+        ident, recipe = config.save(self.recipe)
+        mapping, _, descriptor = nodes.recipe_classes(ident, recipe)
+        first, second = [mapping[g["type"]]() for g in descriptor["groups"]]
+        a = first.select(**{"My style": True, "My style · 强度": -0.5})[0]
+        b = second.select(previous=a, **{"Second": True, "Second · 强度": 0.0})[0]
+        self.assertEqual(b["strengths"], {"0:0": -0.5, "1:0": 0.0})
+        self.assertEqual(a["strengths"], {"0:0": -0.5})
+        for value in (float("nan"), float("inf"), True, 11, "0.5"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                first.select(**{"My style": True, "My style · 强度": value})
+        with self.assertRaises(ValueError):
+            render.build(recipe, ["0:0"], "A teapot", {}, 0, "test", strengths={"9:9": 1})
+
+    def test_mobile_strengths_flow_through_generate(self):
+        self.recipe["mobile_strengths"] = True
+        ident, recipe = config.save(self.recipe)
+        mapping, _, d = nodes.recipe_classes(ident, recipe)
+        selection = mapping[d["groups"][0]["type"]]().select(**{"My style": True, "My style · 强度": 0.6})[0]
+        with patch.object(nodes, "build", return_value={}) as build:
+            mapping[d["main"]]().generate("A teapot", loras=selection, **{k:False for k in nodes.CONTROLS})
+        self.assertEqual(build.call_args.kwargs["strengths"], {"0:0": 0.6})
+
 
 if __name__ == '__main__': unittest.main()

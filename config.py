@@ -95,7 +95,7 @@ def trigger_info(filename: str) -> dict:
 
 
 def validate(data: dict) -> dict:
-    if not isinstance(data, dict) or set(data) - {"name", "models", "generation", "groups", "schema_version", "wildcards", "language", "prompt_policy"}:
+    if not isinstance(data, dict) or set(data) - {"name", "models", "generation", "groups", "schema_version", "wildcards", "language", "prompt_policy", "mobile_strengths"}:
         raise ValueError("Unknown FRAME recipe fields")
     if data.get("schema_version", 1) != 1:
         raise ValueError("Unsupported FRAME recipe version")
@@ -106,6 +106,8 @@ def validate(data: dict) -> dict:
     policy = data.get("prompt_policy", "explicit")
     if policy not in {"legacy", "explicit"}:
         raise ValueError("Invalid manual prompt policy")
+    if type(data.get("mobile_strengths", False)) is not bool:
+        raise ValueError("Mobile strengths must be a Boolean")
     models = data.get("models", {})
     if not isinstance(models, dict) or set(models) - MODEL_FIELDS.keys():
         raise ValueError("Unknown model settings")
@@ -188,7 +190,7 @@ def validate(data: dict) -> dict:
             raise ValueError("Local library names must be unique and match the imported library")
         library_names.add(name); ids.add(row["id"])
         checked_libraries.append({"id": row["id"], "name": name})
-    return {"schema_version": 1, "language": language, "prompt_policy": policy, "name": label(data.get("name", "Krea2 · FRAME for ComfyLink")),
+    return {**({"mobile_strengths": True} if data.get("mobile_strengths") else {}), "schema_version": 1, "language": language, "prompt_policy": policy, "name": label(data.get("name", "Krea2 · FRAME for ComfyLink")),
             "models": checked_models, "generation": {"steps": steps, "cfg": float(number(g.get("cfg", 1.0), "CFG", 0, 30)),
             "sampler": sampler, "scheduler": scheduler, "clip_type": "krea2"}, "groups": checked_groups,
             "wildcards": checked_libraries}

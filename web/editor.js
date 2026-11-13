@@ -72,6 +72,7 @@ export async function buildMobileWorkflow(descriptor) {
     if (Array.isArray(value)) continue;
     if (key === "text" && typeof value === "string") continue;
     if (node.class_type === descriptor.source && (descriptor.source_fields || ["Prompt source","Selection mode"]).includes(key) && typeof value === "string") continue;
+    if (descriptor.mobile_strengths && descriptor.groups.some(g => g.type === node.class_type) && typeof value === "number" && Number.isFinite(value)) continue;
     if (typeof value !== "boolean") throw new Error("Unexpected phone widget: " + key);
   }
   return { ui, output };
@@ -201,7 +202,7 @@ export async function openEditor() {
     try {
       const filename = path.value.trim();
       if (!filename.endsWith(".json") || filename.startsWith("/") || filename.includes("..") || filename.includes("\\")) throw new Error(t("Enter a relative .json path inside your workflow directory"));
-      const body = {schema_version:1,language:exportLanguage.value,name:title.value,models:{},generation:{clip_type:"krea2"},groups:[]};
+      const body = {schema_version:1,mobile_strengths:true,language:exportLanguage.value,name:title.value,models:{},generation:{clip_type:"krea2"},groups:[]};
       body.wildcards=[...libraryRows.values()].filter(x=>x.check.checked).map(x=>({id:x.row.id,name:x.row.name}));
       for (const [key, input] of Object.entries(modelInputs)) if (input.value) body.models[key]=input.value;
       for (const [key,input] of Object.entries(genInputs)) body.generation[key]=["steps","cfg"].includes(key) ? Number(input.value) : input.value;

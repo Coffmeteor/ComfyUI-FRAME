@@ -4,11 +4,11 @@ Choose your models and LoRAs once on the computer, then generate a compact workf
 
 ## Install, then open the generator
 
-1. Download the current **FRAME-Nodes-0.3.5.zip** from the Civitai resource. Extract its **ComfyUI-FRAME** folder into **ComfyUI/custom_nodes/**. If FRAME Nodes is already installed (including as `frame-nodes` by Manager), replace the contents of that existing folder instead of adding a second copy. Restart ComfyUI and refresh the browser. The visible version stays 0.3.5; an older Registry archive does not necessarily contain the current repair.
+1. In **ComfyUI Manager**, search **frame-nodes** and manually select **0.3.6 / the latest version**, then install or update. Restart ComfyUI and refresh the browser. If the latest version is not yet listed, refresh Manager or use the attached ZIP; keep one installed copy.
 2. Open the **ComfyUI menu at the top left → FRAME → Recipe Setup**. That opens the generator; you do not need to load a workflow first.
 3. Alternatively, open the included **workflows/FRAME Krea2 - Start Here.json** and click **Configure models & LoRAs**. This starter is a shortcut to the same generator.
 
-If Manager has not indexed 0.3.5 yet, download the attached **FRAME-Nodes-0.3.5.zip**, extract its **ComfyUI-FRAME** folder into **ComfyUI/custom_nodes/**, and restart. Keep one installed copy. Manager handles declared dependencies during installation; a manually installed Windows environment may need the declared timezone-data dependency. Registry review and indexing are separate from release upload.
+If Manager has not indexed 0.3.6 yet, download the attached **FRAME-Nodes-0.3.6.zip**, extract its **ComfyUI-FRAME** folder into **ComfyUI/custom_nodes/**, and restart. Keep one installed copy. Manager handles declared dependencies during installation; a manually installed Windows environment may need the declared timezone-data dependency. Registry review and indexing are separate from release upload.
 
 Registry: https://registry.comfy.org/nodes/frame-nodes
 Source: https://github.com/Coffmeteor/ComfyUI-FRAME
@@ -40,7 +40,7 @@ All instructions and desktop screenshots on this resource use the English interf
 ## ComfyLink phone setup
 
 1. Save and generate the workflow on desktop.
-2. FRAME 0.3.5 refreshes the paired ComfyLink backend node definitions when saving a recipe. Check the save result. If it reports a refresh failure, restart ComfyUI while idle or refresh backend node definitions before uploading.
+2. FRAME 0.3.6 refreshes the paired ComfyLink backend node definitions when saving a recipe. Check the save result. If it reports a refresh failure, restart ComfyUI while idle or refresh backend node definitions before uploading.
 3. Upload or update the generated workflow in the desktop ComfyLink panel.
 4. Sync the workflow on your phone.
 5. Use the **Prompt source** and **Selection mode** dropdowns, optional manual text, quality switches and your named LoRA switches.
@@ -152,6 +152,6 @@ so they appear as a normal workflow section instead of optional advanced inputs.
 The connected section owns selection values; legacy inline inputs remain supported
 for older workflows. Refresh the saved workflow list after upgrading the node pack.
 
-## Version 0.3.5
+## Version 0.3.6
 
 Includes the dedicated batch-selection card, 1–10 prompts per run, random selection or a fixed list of permanent FRAME prompt numbers, frozen generation plans and replay codes. Preserves LoRA strength controls, automatic triggers, manual-prompt supplement behavior and automatic ComfyLink node-definition refresh. Existing private recipes and saved workflows are not rewritten by installation. Regenerate and sync a workflow to expose the new controls.

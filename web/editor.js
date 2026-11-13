@@ -3,7 +3,7 @@ import { api } from "../../../scripts/api.js";
 
 import { validateWorkflowInputs } from "./workflow_validation.js";
 
-const VERSION = "0.3.5";
+const VERSION = "0.3.6";
 import { resolveLanguage, translate } from "./i18n.js";
 const LANGUAGE_KEY = "FRAME.editorLanguage";
 function preference() { try { return localStorage.getItem(LANGUAGE_KEY) || "auto"; } catch { return "auto"; } }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import math
 import unittest
 from unittest.mock import patch
 
@@ -64,6 +65,23 @@ class ManualPolicyTests(unittest.TestCase):
         ident, _, _, _ = self.prepare()
         with patch.object(selections, 'resolve_frame_prompt', side_effect=AssertionError('network')):
             self.assertEqual(selections.resolve('  My own prompt  ', self.source(ident, choice='manual')), ('My own prompt', None))
+
+    def test_composer_expands_the_selected_prompt_and_preserves_manual_input(self):
+        ident, _, _, _ = self.prepare()
+        composer = nodes.FramePrompt()
+        source = self.source(ident)
+        with patch.object(selections, 'resolve_frame_prompt', side_effect=self.draw) as draw:
+            self.assertEqual(composer.combine('Warm light', selection=source), ('A teapot on a table',))
+            self.assertEqual(composer.combine('Warm light', selection={**source, 'append_manual': True}),
+                             ('A teapot on a table\nWarm light',))
+            self.assertEqual(draw.call_count, 1)
+        manual = self.source(ident, choice='manual')
+        self.assertEqual(composer.combine('  My own prompt  ', selection=manual), ('My own prompt',))
+        with self.assertRaisesRegex(ValueError, 'Enter a prompt'):
+            composer.combine(' ', selection=manual)
+        self.assertEqual(composer.combine('manual text', source='source text'), ('source text\nmanual text',))
+        self.assertFalse(composer.IS_CHANGED(text='manual text'))
+        self.assertTrue(math.isnan(composer.IS_CHANGED(text='manual text', selection=None)))
 
     def test_local_library_uses_the_same_explicit_policy(self):
         wildcards = importlib.import_module('frame_test.wildcards')

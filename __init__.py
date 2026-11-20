@@ -1,4 +1,4 @@
-"""FRAME: desktop recipes, native LoRA loading and phone switches."""
+"""FRAME: Krea2 and MOSS recipes, native LoRA loading and mobile controls."""
 from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS, restore_recipes
 from .routes import register
 

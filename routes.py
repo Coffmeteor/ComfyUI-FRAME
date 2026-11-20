@@ -28,11 +28,17 @@ def register():
     @routes.get("/frame-nodes/state")
     async def state(request):
         require_desktop(request)
-        recipe = config.current()
-        settings = config.directory() / "editor.json"
-        return web.json_response({"version": "0.3.6", "recipe": recipe, "wildcards": wildcards.index(),
-            "workflow_path": config.read_json(settings).get("workflow_path", "FRAME/FRAME Krea2 Mobile.json") if settings.exists() else "FRAME/FRAME Krea2 Mobile.json",
-            "models": {key: config.choices(category) for key, category in config.MODEL_FIELDS.items()},
+        clip_type = request.query.get("clip_type", "krea2")
+        if clip_type not in config.GENERATION_DEFAULTS:
+            raise web.HTTPBadRequest(text="Choose Krea2 or MOSS")
+        recipe = config.current(clip_type)
+        settings = editor_path(clip_type)
+        saved = config.read_json(settings) if settings.exists() else {}
+        return web.json_response({"version": "0.3.7", "recipe": recipe, "wildcards": wildcards.index(),
+            "workflow_path": saved.get("workflow_path", config.WORKFLOW_PATHS[clip_type]),
+            "generation_defaults": config.GENERATION_DEFAULTS[clip_type],
+            "models": {key: config.choices(category) for key, category in config.MODEL_FIELDS.items()
+                       if clip_type != "moss_image" or key in config.MOSS_MODEL_FIELDS},
             "loras": config.choices("loras")}, headers={"Cache-Control": "no-store"})
 
     @routes.get("/frame-nodes/trigger")
@@ -83,7 +89,7 @@ def register():
                 data = data["recipe"]
             ident, recipe = config.save(data)
             if path is not None:
-                config.atomic_json(config.directory() / "editor.json", {"workflow_path": path})
+                config.atomic_json(editor_path(recipe["generation"]["clip_type"]), {"workflow_path": path})
             descriptor = register_recipe(ident, recipe)
             metadata = await comfylink_sync.refresh()
             return web.json_response({"ok": True, "descriptor": descriptor, "comfylink": metadata})
@@ -108,8 +114,18 @@ def register():
                 raise ValueError("Expected a snapshot and its phone inputs")
             from .languages import recipe_language
             recipe = config.load(data["snapshot"])
-            cls = type("FramePreview", (MobileGenerate,), {"SNAPSHOT": data["snapshot"], "LANGUAGE": recipe_language(recipe)})
-            result = cls().generate(**data["inputs"])
+            if recipe["generation"]["clip_type"] == "moss_image":
+                mappings, _, descriptor = recipe_classes(data["snapshot"], recipe)
+                inputs = data["inputs"]
+                result = mappings[descriptor["main"]]().generate(
+                    prompt={"preview": {"inputs": inputs}}, unique_id="preview", **inputs)
+            else:
+                cls = type("FramePreview", (MobileGenerate,), {"SNAPSHOT": data["snapshot"], "LANGUAGE": recipe_language(recipe)})
+                result = cls().generate(**data["inputs"])
             return web.json_response({"graph": result["expand"]})
         except (OSError, ValueError, KeyError, TypeError) as exc:
             return web.json_response({"error": str(exc)}, status=400)
+
+
+def editor_path(clip_type):
+    return config.directory() / ("editor.json" if clip_type == "krea2" else "editor-moss_image.json")

@@ -20,7 +20,7 @@ folder.get_user_directory = lambda: "unused"
 folder.get_filename_list = lambda category: []
 folder.get_full_path = lambda category, name: None
 samplers = types.ModuleType("comfy.samplers")
-samplers.KSampler = types.SimpleNamespace(SAMPLERS=["euler_ancestral", "euler"], SCHEDULERS=["beta", "simple"])
+samplers.KSampler = types.SimpleNamespace(SAMPLERS=["euler_ancestral", "euler", "er_sde"], SCHEDULERS=["beta", "simple"])
 comfy = types.ModuleType("comfy")
 comfy.samplers = samplers
 host_nodes = types.ModuleType("nodes")
@@ -78,6 +78,47 @@ class FrameTests(unittest.TestCase):
             p.start(); self.addCleanup(p.stop)
         self.recipe = {"name": "FRAME Test", "language": "zh", "prompt_policy": "legacy", "models": {"unet": "model.safetensors", "text_encoder": "text.safetensors", "vae": "vae.safetensors"},
             "groups": [{"name": "My styles", "exclusive": False, "entries": [{"name": "My style", "file": "style.safetensors"}]}]}
+
+    def test_resolution_picker_expands_to_native_latent(self):
+        cls = nodes.FrameLatentPreset
+        schema = cls.INPUT_TYPES()["required"]
+        options = schema["resolution"][1]["options"]
+        default = schema["resolution"][1]["default"]
+        self.assertEqual(cls.PRESETS[default], (1344, 2368))
+        self.assertIn((1024, 1792), cls.PRESETS.values())
+        self.assertEqual(options, list(cls.PRESETS))
+        for option in options:
+            width, height = cls.PRESETS[option]
+            with self.subTest(option=option):
+                self.assertEqual((width % 32, height % 32), (0, 0))
+                self.assertLessEqual(width * height * 4, 16_777_216)
+                self.assertEqual(cls().create(option, 1), {
+                    "result": (["1", 0],),
+                    "expand": {"1": {"class_type": "EmptyLatentImage",
+                                     "inputs": {"width": width, "height": height, "batch_size": 1}}},
+                })
+        with self.assertRaisesRegex(ValueError, "batch size"):
+            cls().create(default, 5)
+
+    def test_model_only_lora_stack_chains_active_slots(self):
+        cls = nodes.FrameLoraStack
+        schema = cls.INPUT_TYPES()["required"]
+        slots = {key: spec[1]["default"] for key, spec in schema.items() if key != "model"}
+        model = object()
+        self.assertEqual(cls().apply(model, **slots), (model,))
+        self.assertEqual(schema["lora_4"][1]["options"], ["None", "style.safetensors"])
+        slots.update(lora_1="style.safetensors", strength_1=0.4, lora_2="style.safetensors",
+                     strength_3=1, lora_4="second.safetensors", strength_4=-0.5)
+        expanded = cls().apply(model, **slots)
+        self.assertEqual(expanded, {
+            "result": (["2", 0],),
+            "expand": {
+                "1": {"class_type": "LoraLoaderModelOnly",
+                      "inputs": {"model": model, "lora_name": "style.safetensors", "strength_model": 0.4}},
+                "2": {"class_type": "LoraLoaderModelOnly",
+                      "inputs": {"model": ["1", 0], "lora_name": "second.safetensors", "strength_model": -0.5}},
+            },
+        })
 
     def test_snapshot_immutable_and_current_survives_new_recipe(self):
         first, saved = config.save(self.recipe)

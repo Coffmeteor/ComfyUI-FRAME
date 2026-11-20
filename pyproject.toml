@@ -1,7 +1,7 @@
 [project]
 name = "frame-nodes"
-version = "0.3.6"
-description = "Desktop LoRA recipes, automatic triggers, FRAME prompt libraries and switch-only phone workflows"
+version = "0.3.7"
+description = "Generate Krea2 and MOSS workflows with FRAME prompt libraries and LoRA controls for ComfyLink"
 authors = [{name = "Coffmeteor"}]
 license = {file = "LICENSE"}
 requires-python = ">=3.10"

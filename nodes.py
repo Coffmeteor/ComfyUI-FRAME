@@ -21,7 +21,7 @@ class FrameSetup:
     CATEGORY = "FRAME"
     RETURN_TYPES = ()
     FUNCTION = "setup"
-    DESCRIPTION = "Configure your own Krea2 models and LoRAs, then generate your local desktop/phone workflow."
+    DESCRIPTION = "Configure your own Krea2 or MOSS models and LoRAs, then generate your local desktop/phone workflow."
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -58,9 +58,21 @@ class FramePrompt:
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {"text": ("STRING", {"multiline": True, "default": ""})},
-                "optional": {"triggers": ("STRING", {"forceInput": True}), "source": ("STRING", {"forceInput": True})}}
+                "optional": {"triggers": ("STRING", {"forceInput": True}),
+                             "source": ("STRING", {"forceInput": True}),
+                             "selection": ("FRAME_SOURCE",)}}
 
-    def combine(self, text, triggers="", source=""):
+    @classmethod
+    def IS_CHANGED(cls, **inputs):
+        # Linked selections resolve at execution time, including random draws.
+        return float("nan") if "selection" in inputs else False
+
+    def combine(self, text: str, triggers: str = "", source: str = "", selection: dict | None = None) -> tuple[str]:
+        if selection is not None:
+            from .selections import resolve
+            text, _ = resolve(text, selection)
+            if not text:
+                raise ValueError("Enter a prompt or choose an online/local library")
         return (compose("\n".join(x.strip() for x in (source, text) if x.strip()), [triggers]),)
 
 
@@ -110,6 +122,71 @@ class FrameLora:
             return {"result": (node.out(0), node.out(1), text), "expand": g.finalize()}
         node = g.node("LoraLoaderModelOnly", model=model, lora_name=lora_name, strength_model=strength_model)
         return {"result": (node.out(0), clip, text), "expand": g.finalize()}
+
+
+class FrameLoraStack:
+    CATEGORY = "FRAME/Mobile"
+    RETURN_TYPES = ("MODEL",)
+    FUNCTION = "apply"
+    DESCRIPTION = "Stack up to four model-only LoRAs in slot order. Zero strength or None skips a slot."
+    SLOTS = config.MOSS_LORA_SLOTS
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        choices = ["None", *config.choices("loras")]
+        required = {"model": ("MODEL",)}
+        for slot in cls.SLOTS:
+            required[f"lora_{slot}"] = (choices, {"default": "None", "options": choices, "display_name": f"LoRA {slot}"})
+            required[f"strength_{slot}"] = ("FLOAT", {"default": 0.0, "min": -100.0, "max": 100.0,
+                                                    "step": 0.01, "display_name": f"Strength {slot}"})
+        return {"required": required}
+
+    def apply(self, model, **slots):
+        from comfy_execution.graph_utils import GraphBuilder
+
+        graph = GraphBuilder()
+        for slot in self.SLOTS:
+            name = slots[f"lora_{slot}"]
+            strength = config.number(slots[f"strength_{slot}"], f"Strength {slot}", -100, 100)
+            if name != "None" and strength != 0:
+                model = graph.node("LoraLoaderModelOnly", model=model, lora_name=name, strength_model=strength).out(0)
+        expansion = graph.finalize()
+        if expansion:
+            return {"result": (model,), "expand": expansion}
+        return (model,)
+
+
+class FrameLatentPreset:
+    CATEGORY = "FRAME/Mobile"
+    RETURN_TYPES = ("LATENT",)
+    FUNCTION = "create"
+    PRESETS = {
+        "Portrait · 1344 × 2368": (1344, 2368),
+        "Portrait preview · 1024 × 1792": (1024, 1792),
+        "Portrait 4:5 · 1024 × 1280": (1024, 1280),
+        "Square · 1024 × 1024": (1024, 1024),
+        "Square · 1536 × 1536": (1536, 1536),
+        "Landscape preview · 1792 × 1024": (1792, 1024),
+        "Landscape · 2368 × 1344": (2368, 1344),
+    }
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        choices = list(cls.PRESETS)
+        return {"required": {
+            "resolution": (choices, {"default": choices[0], "options": choices, "display_name": "Resolution"}),
+            "batch_size": ("INT", {"default": 1, "min": 1, "max": 4, "display_name": "Batch size"}),
+        }}
+
+    def create(self, resolution: str, batch_size: int):
+        from comfy_execution.graph_utils import GraphBuilder
+
+        width, height = self.PRESETS[resolution]
+        if type(batch_size) is not int or not 1 <= batch_size <= 4:
+            raise ValueError("Choose a batch size from 1 to 4")
+        graph = GraphBuilder()
+        latent = graph.node("EmptyLatentImage", width=width, height=height, batch_size=batch_size)
+        return {"result": (latent.out(0),), "expand": graph.finalize()}
 
 
 class FrameResizeShortEdge:
@@ -165,11 +242,16 @@ class MobileGenerate:
     FUNCTION = "generate"
     SNAPSHOT = ""
     LANGUAGE = "zh"
+    CLIP_TYPE = "krea2"
+
+    @classmethod
+    def quality_controls(cls):
+        return QUALITY[-2:] if cls.CLIP_TYPE == "moss_image" else QUALITY
 
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {"text": ("STRING", {"default": "", "multiline": True}),
-                             **{caption(en, zh, cls.LANGUAGE): BOOLEAN for en, zh in QUALITY}},
+                             **{caption(en, zh, cls.LANGUAGE): BOOLEAN for en, zh in cls.quality_controls()}},
                 "optional": {"source": ("FRAME_SOURCE",), "loras": ("FRAME_SELECTION",),
                              "catalog_batch": ("FRAME_CATALOG_SELECTION",),
                              "batch_count": ("INT", {"default": 1, "min": 1, "max": 10}),
@@ -229,11 +311,18 @@ class MobileGenerate:
         return plans.freeze(self.SNAPSHOT, graphs)
 
     def _generate_one(self, text, source=None, loras=None, extra_pnginfo=None, **options):
-        labels = {caption(en, zh, self.LANGUAGE): zh for en, zh in QUALITY}
+        dimensions = None
+        if self.CLIP_TYPE == "moss_image":
+            choices = FrameLatentPreset.PRESETS
+            resolution = options.pop("resolution", next(iter(choices)))
+            if not isinstance(resolution, str) or resolution not in choices:
+                raise ValueError("Choose a MOSS resolution preset")
+            dimensions = choices[resolution]
+        labels = {caption(en, zh, self.LANGUAGE): zh for en, zh in self.quality_controls()}
         if set(options) != set(labels):
             raise ValueError("Invalid FRAME controls; sync the workflow for this recipe language")
         options = {labels[key]: value for key, value in options.items()}
-        if not isinstance(text, str) or len(text) > 16000 or set(options) != set(CONTROLS) or any(type(v) is not bool for v in options.values()):
+        if not isinstance(text, str) or len(text) > 16000 or any(type(v) is not bool for v in options.values()):
             raise ValueError("Invalid FRAME phone controls")
         recipe = config.load(self.SNAPSHOT)
         source = source or {"原版": False, "改写版": False, "仅今日新增": False}
@@ -258,7 +347,8 @@ class MobileGenerate:
         prefix = (extra_pnginfo or {}).get("frame_output_prefix", "FRAME/" + self.SNAPSHOT)
         if not isinstance(prefix, str) or not prefix or PurePosixPath(prefix).is_absolute() or ".." in PurePosixPath(prefix).parts or "\\" in prefix or ":" in prefix:
             raise ValueError("Invalid output prefix")
-        return build(recipe, selection["ids"], text, options, seed, prefix, receipt, strengths=selection.get("strengths"))
+        return build(recipe, selection["ids"], text, options, seed, prefix, receipt,
+                     strengths=selection.get("strengths"), **({"dimensions": dimensions} if dimensions else {}))
 
 
 def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
@@ -268,8 +358,12 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
     mode_label = caption("Selection mode", "抽词方式", language)
     append_label = caption("Append manual text", "追加手动提示词", language)
     explicit = recipe.get("prompt_policy", "legacy") == "explicit"
-    main_title = caption("Prompt & Quality", "提示词与画质", language)
+    clip_type = recipe.get("generation", {}).get("clip_type", "krea2")
+    moss = clip_type == "moss_image"
+    main_title = caption("MOSS · Prompt & Resolution", "MOSS · 提示词与分辨率", language) if moss else caption("Prompt & Quality", "提示词与画质", language)
     compact = recipe.get("mobile_controls") == 2
+    # ComfyLink uses this recipe-node ID prefix for prompt sharing and batch replay.
+    # Keep it stable for both families; the recipe controls the actual model graph.
     main = "FrameKrea2_" + ident
     mappings = {main: type(main, (MobileGenerate,), {"SNAPSHOT": ident, "LANGUAGE": language})}
     names = {main: main_title}
@@ -293,10 +387,15 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
     }
     text_field = caption("Prompt", "提示词", language) if compact else "text"
     replay_field = caption("Replay code", "重放编号", language) if compact else "replay_code"
+    resolution_field = caption("Resolution", "分辨率", language)
+    resolutions = list(FrameLatentPreset.PRESETS)
     if compact:
         def compact_schema(cls):
             schema = MobileGenerate.INPUT_TYPES.__func__(cls)
             schema["required"] = {text_field: schema["required"].pop("text"), **schema["required"]}
+            if moss:
+                schema["required"] = {resolution_field: (resolutions, {"default": resolutions[0], "options": resolutions}),
+                                      **schema["required"]}
             schema["optional"] = {key: schema["optional"][key] for key in ("source", "loras", "catalog_batch")}
             schema["optional"][replay_field] = ("STRING", {"default": "", "tooltip": caption("Leave empty for normal generation. Enter a saved batch or item code to replay it.", "正常生成时留空。填写已保存的批次或单项编号可重放。", language)})
             schema["hidden"].update(prompt="PROMPT", unique_id="UNIQUE_ID")
@@ -304,6 +403,8 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
         def compact_generate(self, **values):
             text = values.pop(text_field, "")
             replay = values.pop(replay_field, "")
+            if moss and resolution_field in values:
+                values["resolution"] = values.pop(resolution_field)
             # Existing API clients and ComfyLink replay receipts may still send
             # canonical inputs. Accept them server-side without exposing widgets.
             prompt, unique_id = values.pop("prompt", None), values.pop("unique_id", None)
@@ -323,7 +424,7 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
                 if raw["prompt_batch"].strip():
                     values["catalog_batch"] = None
             return MobileGenerate.generate(self, text=text, replay_code=replay, **values)
-        mappings[main] = type(main, (MobileGenerate,), {"SNAPSHOT": ident, "LANGUAGE": language,
+        mappings[main] = type(main, (MobileGenerate,), {"SNAPSHOT": ident, "LANGUAGE": language, "CLIP_TYPE": clip_type,
             "INPUT_TYPES": classmethod(compact_schema), "generate": compact_generate})
 
     def batch_schema(cls):
@@ -397,7 +498,45 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
                      "FUNCTION": "select", "INPUT_TYPES": classmethod(source_schema), "select": select_source})
     names[source_type] = source_label
     groups = []
-    for gi, group in enumerate(recipe["groups"]):
+    if moss:
+        entries = recipe["groups"][0]["entries"] if recipe["groups"] else []
+        ids = {entry["name"]: f"0:{index}" for index, entry in enumerate(entries)}
+        kind = "FrameLoRAs_" + ident + "_0"
+        title = caption("MOSS LoRA Stack", "MOSS LoRA 堆栈", language)
+        choices = ["None", *ids]
+        slot_fields = [(caption(f"LoRA {i}", f"LoRA 槽位 {i}", language),
+                        caption(f"Strength {i}", f"强度 {i}", language)) for i in config.MOSS_LORA_SLOTS]
+        controls = {}
+        for name, strength in slot_fields:
+            controls[name] = (choices, {"default": "None", "options": choices})
+            controls[strength] = ("FLOAT", {"default": 1.0, "min": -10, "max": 10, "step": 0.05})
+
+        def stack_schema(cls):
+            return {"required": copy.deepcopy(controls)}
+
+        def select_stack(self, **values):
+            if set(values) != set(controls):
+                raise ValueError("Invalid LoRA controls; resync this workflow")
+            strengths = {}
+            for name, strength_field in slot_fields:
+                selected = values[name]
+                strength = config.number(values[strength_field], strength_field, -10, 10)
+                if not isinstance(selected, str) or selected not in choices:
+                    raise ValueError("Choose a LoRA configured for this MOSS recipe")
+                if selected == "None" or strength == 0:
+                    continue
+                key = ids[selected]
+                if key in strengths:
+                    raise ValueError("Select each MOSS LoRA only once")
+                strengths[key] = strength
+            return ({"snapshot": ident, "ids": list(strengths), "strengths": strengths},)
+
+        mappings[kind] = type(kind, (), {"CATEGORY": "FRAME/Mobile", "RETURN_TYPES": ("FRAME_SELECTION",),
+                    "FUNCTION": "select", "INPUT_TYPES": classmethod(stack_schema), "select": select_stack})
+        names[kind] = title
+        groups.append({"type": kind, "title": title, "labels": list(controls),
+                       "choices": {name: choices for name, _ in slot_fields}})
+    for gi, group in enumerate([] if moss else recipe["groups"]):
         kind = f"FrameLoRAs_{ident}_{gi}"
         controls = {}
         strength_fields = {}
@@ -438,6 +577,7 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
         names[kind] = group["name"]
         groups.append({"type": kind, "title": group["name"], "labels": list(controls)})
     return mappings, names, {"snapshot": ident, "name": recipe["name"], "main": main, "main_title": main_title,
+                            **({"resolution_field": resolution_field, "resolutions": resolutions} if moss else {}),
                             "source": source_type, "source_title": source_label,
                             "batch": batch_type, "batch_title": batch_title,
                             "batch_field_names": field_names if compact else {}, "batch_option_names": option_names if compact else {},
@@ -447,9 +587,12 @@ def recipe_classes(ident: str, recipe: dict) -> tuple[dict, dict, dict]:
 
 
 NODE_CLASS_MAPPINGS = {"FrameSource": FrameSource, "FramePrompt": FramePrompt, "FrameLora": FrameLora,
-                       "FrameResizeShortEdge": FrameResizeShortEdge, "FrameSave": FrameSave, "FrameSetup": FrameSetup}
+                       "FrameLoraStack": FrameLoraStack, "FrameLatentPreset": FrameLatentPreset,
+                       "FrameResizeShortEdge": FrameResizeShortEdge,
+                       "FrameSave": FrameSave, "FrameSetup": FrameSetup}
 NODE_DISPLAY_NAME_MAPPINGS = {"FrameSource": "FRAME · Legacy source switches", "FramePrompt": "FRAME · Prompt Composer",
-                            "FrameLora": "FRAME · LoRA & Triggers", "FrameResizeShortEdge": "FRAME · Resize Short Edge",
+                            "FrameLora": "FRAME · LoRA & Triggers", "FrameLoraStack": "FRAME · Model-only LoRA Stack",
+                            "FrameLatentPreset": "FRAME · Resolution", "FrameResizeShortEdge": "FRAME · Resize Short Edge",
                             "FrameSetup": "FRAME · Start Here"}
 
 

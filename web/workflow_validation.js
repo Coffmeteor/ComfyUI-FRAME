@@ -5,6 +5,7 @@ export function validateWorkflowInputs(output, descriptor) {
     if (node.class_type === descriptor.main) {
       if (key === descriptor.text_field) key = "text";
       if (key === descriptor.replay_field) key = "replay_code";
+      if (key === descriptor.resolution_field && descriptor.resolutions.includes(value)) continue;
     }
     if (node.class_type === descriptor.batch) {
       key = Object.entries(descriptor.batch_field_names || {}).find(([, label]) => label === rawKey)?.[0] || key;
@@ -20,7 +21,9 @@ export function validateWorkflowInputs(output, descriptor) {
       if (["prompt_format", "prompt_ids"].includes(key) && typeof value === "string") continue;
       if (node.class_type === descriptor.main && ["replay_code", "prompt_batch"].includes(key) && typeof value === "string") continue;
     }
-    if (descriptor.mobile_strengths && descriptor.groups.some(g => g.type === node.class_type) && typeof value === "number" && Number.isFinite(value)) continue;
+    const group = descriptor.groups.find(g => g.type === node.class_type);
+    if (group?.choices?.[key]?.includes(value)) continue;
+    if (descriptor.mobile_strengths && group && typeof value === "number" && Number.isFinite(value)) continue;
     if (typeof value !== "boolean") throw new Error("Unexpected phone widget: " + key);
   }
 }

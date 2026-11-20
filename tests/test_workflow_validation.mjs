@@ -22,3 +22,18 @@ test('localized compact controls validate without exposing legacy names', () => 
   validateWorkflowInputs({1:{class_type:'Main',inputs:{'提示词':'','重放编号':''}},2:{class_type:'Batch',inputs:{'数量':2,'选择方式':'固定编号','词库':'原版词库','版本':'Krea 2','编号':'1,2'}}},descriptor);
   assert.throws(()=>validateWorkflowInputs({2:{class_type:'Batch',inputs:{'数量':11}}},descriptor));
 });
+
+test('MOSS exports only declared resolution and stack choices', () => {
+  const moss = {...descriptor, resolution_field: 'Resolution', resolutions: ['Square'],
+    groups: [{type: 'Loras', choices: {'LoRA 1': ['None', 'Style']}}]};
+  const output = {
+    1: {class_type: 'Generate', inputs: {Resolution: 'Square', loras: ['2', 0]}},
+    2: {class_type: 'Loras', inputs: {'LoRA 1': 'Style', 'Strength 1': 0.7}},
+  };
+  assert.doesNotThrow(() => validateWorkflowInputs(output, moss));
+  output[2].inputs['LoRA 1'] = 'Unconfigured';
+  assert.throws(() => validateWorkflowInputs(output, moss));
+  output[2].inputs['LoRA 1'] = 'None';
+  output[1].inputs.Resolution = 'Invented';
+  assert.throws(() => validateWorkflowInputs(output, moss));
+});

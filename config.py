@@ -16,6 +16,15 @@ MODEL_FIELDS = {"unet": "diffusion_models", "alternate_unet": "diffusion_models"
                 "text_encoder": "text_encoders", "vae": "vae", "upscaler": "upscale_models",
                 "face_detector": "ultralytics_bbox", "seedvr_model": "diffusion_models",
                 "seedvr_vae": "vae"}
+GENERATION_DEFAULTS = {
+    "krea2": {"steps": 8, "cfg": 1.0, "sampler": "euler_ancestral", "scheduler": "beta"},
+    "moss_image": {"steps": 25, "cfg": 2.5, "sampler": "er_sde", "scheduler": "simple",
+                   "shift": 5.0, "negative_prompt": ""},
+}
+WORKFLOW_NAMES = {"krea2": "Krea2 · FRAME for ComfyLink", "moss_image": "MOSS · FRAME for ComfyLink"}
+WORKFLOW_PATHS = {"krea2": "FRAME/FRAME Krea2 Mobile.json", "moss_image": "FRAME/FRAME MOSS Mobile.json"}
+MOSS_MODEL_FIELDS = {"unet", "text_encoder", "vae", "alternate_unet"}
+MOSS_LORA_SLOTS = range(1, 5)
 
 
 def directory() -> Path:
@@ -110,8 +119,19 @@ def validate(data: dict) -> dict:
         raise ValueError("Mobile strengths must be a Boolean")
     if data.get("mobile_controls", 1) not in (1, 2):
         raise ValueError("Unsupported mobile control layout")
+    g = data.get("generation", {})
+    if not isinstance(g, dict):
+        raise ValueError("Unknown generation settings")
+    clip_type = g.get("clip_type", "krea2")
+    if not isinstance(clip_type, str) or clip_type not in GENERATION_DEFAULTS:
+        raise ValueError("Choose Krea2 or MOSS")
+    defaults = GENERATION_DEFAULTS[clip_type]
+    if set(g) - (defaults.keys() | {"clip_type"}):
+        raise ValueError("Unknown generation settings")
+    moss = clip_type == "moss_image"
     models = data.get("models", {})
-    if not isinstance(models, dict) or set(models) - MODEL_FIELDS.keys():
+    model_fields = MOSS_MODEL_FIELDS if moss else MODEL_FIELDS.keys()
+    if not isinstance(models, dict) or set(models) - model_fields:
         raise ValueError("Unknown model settings")
     checked_models = {}
     for field, category in MODEL_FIELDS.items():
@@ -121,21 +141,26 @@ def validate(data: dict) -> dict:
             checked_models[field] = value
         elif field in {"unet", "text_encoder", "vae"}:
             raise ValueError(f"Select {field} before exporting a phone workflow")
-    g = data.get("generation", {})
-    if not isinstance(g, dict) or set(g) - {"steps", "cfg", "sampler", "scheduler", "clip_type"}:
-        raise ValueError("Unknown generation settings")
     import comfy.samplers
-    steps = number(g.get("steps", 8), "steps", 1, 100)
+    steps = number(g.get("steps", defaults["steps"]), "steps", 1, 100)
     if type(steps) is not int:
         raise ValueError("steps must be an integer")
-    sampler, scheduler = g.get("sampler", "euler_ancestral"), g.get("scheduler", "beta")
+    sampler, scheduler = g.get("sampler", defaults["sampler"]), g.get("scheduler", defaults["scheduler"])
     if sampler not in comfy.samplers.KSampler.SAMPLERS or scheduler not in comfy.samplers.KSampler.SCHEDULERS:
         raise ValueError("Unknown sampler or scheduler")
-    if g.get("clip_type", "krea2") != "krea2":
-        raise ValueError("The mobile generation recipe currently supports Krea2; use generic nodes for other families")
+    generation = {"steps": steps, "cfg": float(number(g.get("cfg", defaults["cfg"]), "CFG", 0, 30)),
+                  "sampler": sampler, "scheduler": scheduler, "clip_type": clip_type}
+    if moss:
+        negative = g.get("negative_prompt", defaults["negative_prompt"])
+        if not isinstance(negative, str) or len(negative) > 16000:
+            raise ValueError("Negative prompt must be text up to 16,000 characters")
+        generation.update(shift=float(number(g.get("shift", defaults["shift"]), "Flow shift", 0.01, 100)),
+                          negative_prompt=negative.strip())
     groups = data.get("groups", [])
     if not isinstance(groups, list) or len(groups) > 8:
         raise ValueError("Use at most eight LoRA groups")
+    if moss and len(groups) > 1:
+        raise ValueError("Add MOSS LoRAs to one stack")
     checked_groups, total, names = [], 0, set()
     for group in groups:
         if not isinstance(group, dict) or set(group) - {"name", "exclusive", "entries"}:
@@ -143,11 +168,14 @@ def validate(data: dict) -> dict:
         name = label(group.get("name"), "group name")
         if name in names or type(group.get("exclusive", False)) is not bool:
             raise ValueError("Group names must be unique and exclusive must be a Boolean")
+        if moss and group.get("exclusive"):
+            raise ValueError("MOSS LoRA stack allows multiple active slots")
         names.add(name)
         entries = group.get("entries", [])
         if not isinstance(entries, list) or len(entries) > 64:
             raise ValueError("Use at most 64 LoRAs per group")
         result, labels = [], set()
+        files = set()
         for entry in entries:
             if not isinstance(entry, dict) or set(entry) - {"name", "file", "strength_model", "strength_clip", "trigger", "trigger_mode", "stages", "file_signature", "trigger_source"}:
                 raise ValueError("Unknown LoRA settings")
@@ -157,6 +185,9 @@ def validate(data: dict) -> dict:
             labels.add(title)
             filename = entry.get("file")
             path = resolve("loras", filename)
+            if moss and (title == "None" or filename in files):
+                raise ValueError("Use a unique file per MOSS LoRA and a name other than None")
+            files.add(filename)
             mode = entry.get("trigger_mode", "auto")
             if mode not in {"auto", "manual", "none"}:
                 raise ValueError("Unknown trigger mode")
@@ -164,13 +195,16 @@ def validate(data: dict) -> dict:
             trigger = entry.get("trigger", "") if mode == "manual" else detected["text"]
             if not isinstance(trigger, str) or len(trigger) > 2048:
                 raise ValueError("Trigger text is too long")
-            stages = entry.get("stages", ["base", "upscale", "detailer"])
+            stages = entry.get("stages", ["base"] if moss else ["base", "upscale", "detailer"])
             if not isinstance(stages, list) or not stages or len(set(stages)) != len(stages) or set(stages) - {"base", "upscale", "detailer"}:
                 raise ValueError("Choose valid LoRA application stages")
+            strength_clip = float(number(entry.get("strength_clip", 0.0), "CLIP strength", -10, 10))
+            if moss and (strength_clip != 0 or stages != ["base"]):
+                raise ValueError("MOSS LoRAs are model-only and apply during base sampling")
             st = path.stat()
             result.append({"name": title, "file": filename,
                            "strength_model": float(number(entry.get("strength_model", 1.0), "model strength", -10, 10)),
-                           "strength_clip": float(number(entry.get("strength_clip", 0.0), "CLIP strength", -10, 10)),
+                           "strength_clip": strength_clip,
                            "trigger_mode": mode, "trigger": trigger.strip(), "trigger_source": detected["source"],
                            "stages": stages, "file_signature": [st.st_size, st.st_mtime_ns]})
         total += len(result)
@@ -192,9 +226,8 @@ def validate(data: dict) -> dict:
             raise ValueError("Local library names must be unique and match the imported library")
         library_names.add(name); ids.add(row["id"])
         checked_libraries.append({"id": row["id"], "name": name})
-    return {**({"mobile_controls": 2} if data.get("mobile_controls") == 2 else {}), **({"mobile_strengths": True} if data.get("mobile_strengths") else {}), "schema_version": 1, "language": language, "prompt_policy": policy, "name": label(data.get("name", "Krea2 · FRAME for ComfyLink")),
-            "models": checked_models, "generation": {"steps": steps, "cfg": float(number(g.get("cfg", 1.0), "CFG", 0, 30)),
-            "sampler": sampler, "scheduler": scheduler, "clip_type": "krea2"}, "groups": checked_groups,
+    return {**({"mobile_controls": 2} if moss or data.get("mobile_controls") == 2 else {}), **({"mobile_strengths": True} if moss or data.get("mobile_strengths") else {}), "schema_version": 1, "language": language, "prompt_policy": policy, "name": label(data.get("name", WORKFLOW_NAMES[clip_type])),
+            "models": checked_models, "generation": generation, "groups": checked_groups,
             "wildcards": checked_libraries}
 
 
@@ -223,7 +256,7 @@ def save(data: dict) -> tuple[str, dict]:
     if path.exists() and read_json(path) != checked:
         raise ValueError("Snapshot identity collision")
     atomic_json(path, checked)
-    atomic_json(directory() / "current.json", {"snapshot": ident})
+    atomic_json(current_path(checked["generation"]["clip_type"]), {"snapshot": ident})
     return ident, checked
 
 
@@ -236,7 +269,14 @@ def load(ident: str) -> dict:
     return value
 
 
-def current() -> dict:
-    path = directory() / "current.json"
+def current_path(clip_type: str) -> Path:
+    if clip_type not in GENERATION_DEFAULTS:
+        raise ValueError("Choose Krea2 or MOSS")
+    return directory() / ("current.json" if clip_type == "krea2" else "current-moss_image.json")
+
+
+def current(clip_type: str = "krea2") -> dict:
+    path = current_path(clip_type)
     return load(read_json(path)["snapshot"]) if path.exists() else {
-        "schema_version": 1, "language": "en", "name": "Krea2 · FRAME for ComfyLink", "models": {}, "generation": {}, "groups": []}
+        "schema_version": 1, "language": "en", "name": WORKFLOW_NAMES[clip_type], "models": {},
+        "generation": {} if clip_type == "krea2" else {"clip_type": clip_type}, "groups": []}

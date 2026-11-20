@@ -20,11 +20,12 @@ def canvas(landscape=False, square=False, wallpaper=False, small=False):
     return round(math.sqrt(pixels * ratio) / 32) * 32, round(math.sqrt(pixels / ratio) / 32) * 32
 
 
-def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int, prefix: str, receipt=None, *, strengths=None):
+def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int, prefix: str, receipt=None, *, strengths=None, dimensions=None):
     from comfy_execution.graph_utils import GraphBuilder
     import nodes
     g = GraphBuilder()
     models, settings = recipe["models"], recipe["generation"]
+    moss = settings["clip_type"] == "moss_image"
     features = {"高清重绘": ("upscaler", ["UltimateSDUpscale"]),
                 "面部细修": ("face_detector", ["UltralyticsDetectorProvider", "FaceDetailer"]),
                 "SeedVR2修复": ("seedvr_model", ["SeedVR2Preprocess", "SeedVR2Conditioning", "SeedVR2PostProcessing"])}
@@ -60,6 +61,8 @@ def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int
         if group["exclusive"] and sum(key.startswith(f"{gi}:") for key in selected) > 1:
             raise ValueError(f"Allow only one active LoRA in {group['name']}")
     base_model = g.node("UNETLoader", unet_name=model_name, weight_dtype="default").out(0)
+    if moss:
+        base_model = g.node("ModelSamplingAuraFlow", model=base_model, shift=settings["shift"]).out(0)
     base_clip = g.node("CLIPLoader", clip_name=models["text_encoder"], type=settings["clip_type"], device="default").out(0)
     vae = g.node("VAELoader", vae_name=models["vae"]).out(0)
 
@@ -76,11 +79,14 @@ def build(recipe: dict, selected: list[str], text: str, options: dict, seed: int
                               strength_model=entry["strength_model"], strength_clip=entry["strength_clip"])
                 model, clip = lora.out(0), lora.out(1)
         positive = g.node("CLIPTextEncode", text=compose(text, triggers), clip=clip).out(0)
-        negative = g.node("ConditioningZeroOut", conditioning=positive).out(0)
+        if moss:
+            negative = g.node("CLIPTextEncode", text=settings["negative_prompt"], clip=clip).out(0)
+        else:
+            negative = g.node("ConditioningZeroOut", conditioning=positive).out(0)
         return model, clip, positive, negative
 
-    width, height = canvas(options.get("横图", False), options.get("方图", False),
-                           options.get("手机壁纸", False), options.get("一百万像素", False))
+    width, height = dimensions or canvas(options.get("横图", False), options.get("方图", False),
+                                         options.get("手机壁纸", False), options.get("一百万像素", False))
     model, clip, positive, negative = stage("base")
     latent = g.node("EmptyLatentImage", width=width, height=height, batch_size=1).out(0)
     sample = g.node("KSampler", model=model, positive=positive, negative=negative, latent_image=latent,

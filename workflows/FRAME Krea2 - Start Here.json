@@ -20,7 +20,7 @@
       "mode": 0,
       "inputs": [],
       "outputs": [],
-      "title": "FRAME Krea2 — Start Here",
+      "title": "FRAME — Start Here",
       "properties": {
         "ue_properties": {
           "widget_ue_connectable": {},
@@ -28,7 +28,7 @@
         },
         "Node name for S&R": "FrameSetup",
         "cnr_id": "frame-nodes",
-        "ver": "0.3.6",
+        "ver": "0.3.7",
         "aux_id": "Coffmeteor/ComfyUI-FRAME"
       },
       "widgets_values": [
@@ -84,10 +84,10 @@
       "title": "2 · Configure your local recipe",
       "properties": {},
       "widgets_values": [
-        "# Configure once on desktop\nClick **Configure models & LoRAs**. Select your Krea2 model, text encoder and VAE.\nAdd your own LoRA groups, strengths and trigger words; optionally import UTF-8 .txt wildcards.\nSave, then click **Open generated workflow**."
+        "# Configure once on desktop\nClick **Configure models & LoRAs**, select **Krea2** or **MOSS**, then bind your model, text encoder and VAE.\nAdd compatible LoRAs and optional local text libraries. Save, then click **Open generated workflow**."
       ],
       "widgets_values_named": {
-        "text": "# Configure once on desktop\nClick **Configure models & LoRAs**. Select your Krea2 model, text encoder and VAE.\nAdd your own LoRA groups, strengths and trigger words; optionally import UTF-8 .txt wildcards.\nSave, then click **Open generated workflow / 打开已生成工作流**."
+        "text": "# Configure once on desktop\nClick **Configure models & LoRAs**, select **Krea2** or **MOSS**, then bind your model, text encoder and VAE.\nAdd compatible LoRAs and optional local text libraries. Save, then click **Open generated workflow**."
       },
       "color": "#432",
       "bgcolor": "#653"
@@ -111,10 +111,10 @@
       "title": "3 · Generate on desktop or phone",
       "properties": {},
       "widgets_values": [
-        "# Prompt sources + simple switches\nChoose Manual, FRAME Original/Rewrite (full library or latest update), or a local library.\nUse **Reuse current** to keep a prompt; **Random each generation** draws another.\nComfyLink: restart while idle, upload the generated workflow, then sync on your phone.\nLibrary modes ignore manual text unless **Append manual text** is enabled."
+        "# Prompt libraries and mobile controls\nChoose Manual, FRAME Original/Rewrite, or an imported local library. **Reuse current** keeps the prompt; **Random each generation** draws another.\nMOSS offers a resolution dropdown and one four-slot LoRA card. Krea2 uses quality and LoRA switches.\nAfter saving, upload the workflow in ComfyLink, then reopen it on your phone."
       ],
       "widgets_values_named": {
-        "text": "# Prompt sources + simple switches\nChoose Manual, FRAME Original/Rewrite (full library or latest update), or a local library.\nUse **Reuse current** to keep a prompt; **Random each generation** draws another.\nComfyLink: restart while idle, upload the generated workflow, then sync on your phone."
+        "text": "# Prompt libraries and mobile controls\nChoose Manual, FRAME Original/Rewrite, or an imported local library. **Reuse current** keeps the prompt; **Random each generation** draws another.\nMOSS offers a resolution dropdown and one four-slot LoRA card. Krea2 uses quality and LoRA switches.\nAfter saving, upload the workflow in ComfyLink, then reopen it on your phone."
       },
       "color": "#432",
       "bgcolor": "#653"
@@ -133,7 +133,7 @@
     },
     "frame": {
       "template": "portable-setup",
-      "version": "0.3.6"
+      "version": "0.3.7"
     }
   },
   "version": 0.4

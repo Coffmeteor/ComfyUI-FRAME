@@ -1,21 +1,21 @@
 # FRAME Nodes — Workflow Generator for ComfyUI and ComfyLink
 
-Choose your models and LoRAs once on the computer, then generate a compact workflow with prompt controls, LoRA switches and strengths, and batch selection. Run it directly in ComfyUI or use it from ComfyLink on your phone. No separate FRAME app or app connector is required.
+Choose **Krea2** or **MOSS**, configure your models and LoRAs on the computer, and generate a workflow for ComfyUI and ComfyLink. Both families support FRAME prompt libraries, imported text libraries and batch prompt selection.
 
 ## Install, then open the generator
 
-1. In **ComfyUI Manager**, search **frame-nodes** and manually select **0.3.6 / the latest version**, then install or update. Restart ComfyUI and refresh the browser. If the latest version is not yet listed, refresh Manager or use the attached ZIP; keep one installed copy.
+1. In **ComfyUI Manager**, search **frame-nodes** and install version **0.3.7** or newer. Restart ComfyUI and refresh the browser. If the version is still being indexed, use the release ZIP.
 2. Open the **ComfyUI menu at the top left → FRAME → Recipe Setup**. That opens the generator; you do not need to load a workflow first.
 3. Alternatively, open the included **workflows/FRAME Krea2 - Start Here.json** and click **Configure models & LoRAs**. This starter is a shortcut to the same generator.
 
-If Manager has not indexed 0.3.6 yet, download the attached **FRAME-Nodes-0.3.6.zip**, extract its **ComfyUI-FRAME** folder into **ComfyUI/custom_nodes/**, and restart. Keep one installed copy. Manager handles declared dependencies during installation; a manually installed Windows environment may need the declared timezone-data dependency. Registry review and indexing are separate from release upload.
+For manual installation, download **FRAME-Nodes-0.3.7.zip** from the GitHub release, extract its **ComfyUI-FRAME** folder into **ComfyUI/custom_nodes/**, and restart. Keep one installed copy. Manager handles declared dependencies during installation; a manually installed Windows environment may need the declared timezone-data dependency.
 
 Registry: https://registry.comfy.org/nodes/frame-nodes
 Source: https://github.com/Coffmeteor/ComfyUI-FRAME
 
-## Configure it on the computer
+## Configure Krea2 on the computer
 
-1. In **Models (first-time setup)**, choose your Krea2 diffusion model, text encoder and VAE. The menus list files already installed in ComfyUI; model weights are not included.
+1. Choose **Krea2** as the model family. In **Models (first-time setup)**, choose your Krea2 diffusion model, text encoder and VAE. The menus list files already installed in ComfyUI.
 2. In **Krea2 sampling**, set steps, sampler and scheduler. Defaults are 8 steps, CFG 1 and Euler ancestral / beta; adjust them for your model.
 3. In **My LoRAs**, add a group, choose each LoRA file and give it a readable switch name. Set model strength, CLIP strength and application stages. Use CLIP strength 0 for model-only LoRAs.
 4. Choose **auto**, **manual** or **none** for triggers. Auto reads explicit trigger metadata; enter the author's trigger words manually if no metadata is available. Mark a group **Allow only one active LoRA** when its choices should be exclusive.
@@ -26,6 +26,15 @@ Source: https://github.com/Coffmeteor/ComfyUI-FRAME
 Requires ComfyUI 0.43.0 or newer and your own compatible models. The generated workflow refers to a recipe saved on this computer. Other users should install the generator and configure their own files; do not send them your machine-specific recipe as a universal workflow.
 
 Newly saved recipes have one batch-selection card. Its field names and menu choices follow the exported workflow language. The main card contains prompt, quality and replay controls; legacy batch and internal prepared-JSON fields are not exposed. Older recipe snapshots retain their original interface.
+
+## Configure MOSS on the computer
+
+1. Choose **MOSS** under **Model family**. Select your installed MOSS-Image diffusion model, compatible Qwen 3.5 text encoder, and FLUX.2 VAE. Use a ComfyUI build with native `moss_image` support. [ComfyUI MOSS-Image setup](https://docs.comfy.org/tutorials/image/moss-image/moss-image)
+2. In **MOSS sampling**, set the sampler for your checkpoint. The starting settings are 25 steps, CFG 2.5, ER-SDE, simple, and flow shift 5. You can also set a negative prompt.
+3. In **MOSS LoRA Stack**, add your compatible model-only LoRA files and choose their trigger behavior. The phone workflow shows one card with four slots. Each slot lets you choose a configured LoRA and set its strength. **None** or zero strength skips the slot. Active LoRAs apply in slot order.
+4. Optionally select local prompt libraries, then save and open the workflow. In **MOSS · Prompt & Resolution**, choose from seven presets, including portrait, square, landscape and lower-resolution previews.
+
+MOSS and Krea2 each keep their own last saved recipe and default workflow path. Share the installer and setup guide with other ComfyUI users so they can generate a workflow against their own models and libraries.
 
 ## Language options
 
@@ -40,14 +49,14 @@ All instructions and desktop screenshots on this resource use the English interf
 ## ComfyLink phone setup
 
 1. Save and generate the workflow on desktop.
-2. FRAME 0.3.6 refreshes the paired ComfyLink backend node definitions when saving a recipe. Check the save result. If it reports a refresh failure, restart ComfyUI while idle or refresh backend node definitions before uploading.
+2. FRAME refreshes the paired ComfyLink backend node definitions when saving a recipe. Check the save result. If it reports a refresh failure, restart ComfyUI while idle or refresh backend node definitions before uploading.
 3. Upload or update the generated workflow in the desktop ComfyLink panel.
 4. Sync the workflow on your phone.
-5. Use the **Prompt source** and **Selection mode** dropdowns, optional manual text, quality switches and your named LoRA switches.
+5. Use **Prompt source** and **Selection mode** on either workflow. On MOSS, set **Resolution** and choose up to four entries in **MOSS LoRA Stack**. On Krea2, use the quality and named LoRA switches.
 
 If a source or mode field appears as an editable text box, refresh the phone's backend node/model definitions, then sync the workflow again. Workflow upload and node-definition refresh are separate operations; FRAME now performs the latter automatically on recipe save when the installed ComfyLink plugin supports it. This fixes new snapshot nodes appearing as text fields after a hot save. Offline, unpaired or unsupported plugins leave the desktop recipe usable and show a refresh warning instead of reporting success. No pairing permissions are changed. After changing model bindings, LoRA groups, selected libraries or workflow language, generate and sync the new workflow again.
 
-LoRA enable switches and model-strength numbers are available on the phone. File selection, CLIP strength, trigger editing and application stages are configured on the computer. Existing accounts and backend pairing permissions are not changed by this extension. Shared-backend execution may require a compatible ComfyLink version; see the source repository's compatibility notes.
+Krea2 file selection, CLIP strength, trigger editing and application stages are configured on the computer. Krea2 enable switches and model strengths are available on the phone. Shared-backend execution may require a compatible ComfyLink version; see the source repository's compatibility notes.
 
 ## Online and local prompt sources
 
@@ -151,6 +160,10 @@ node (`批量抽词 · 数量与编号`). Its five scalar controls are required 
 so they appear as a normal workflow section instead of optional advanced inputs.
 The connected section owns selection values; legacy inline inputs remain supported
 for older workflows. Refresh the saved workflow list after upgrading the node pack.
+
+## Version 0.3.7
+
+Adds MOSS as a model family in the generator, with the FRAME prompt library, one four-slot model-only LoRA card, and a seven-preset resolution menu. Existing Krea2 recipes remain available.
 
 ## Version 0.3.6
 
